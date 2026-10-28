@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Ilya Shaposhnikov" }]
-dependencies = []
+dependencies = ["requests>=2.32"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
