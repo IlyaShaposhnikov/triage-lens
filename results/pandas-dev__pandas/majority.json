@@ -1,0 +1,157 @@
+{
+  "repo": "pandas-dev/pandas",
+  "model": "majority",
+  "params": {},
+  "scores": {
+    "validation": {
+      "n": 2326,
+      "macro_f1": 0.18660738345459446,
+      "accuracy": 0.5954428202923474,
+      "per_class": {
+        "bug": {
+          "precision": 0.5954428202923474,
+          "recall": 1.0,
+          "f1": 0.7464295338183778,
+          "support": 1385
+        },
+        "feature": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 401
+        },
+        "question": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 205
+        },
+        "docs": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 335
+        }
+      },
+      "confusion": {
+        "labels": [
+          "bug",
+          "feature",
+          "question",
+          "docs"
+        ],
+        "matrix": [
+          [
+            1385,
+            0,
+            0,
+            0
+          ],
+          [
+            401,
+            0,
+            0,
+            0
+          ],
+          [
+            205,
+            0,
+            0,
+            0
+          ],
+          [
+            335,
+            0,
+            0,
+            0
+          ]
+        ]
+      },
+      "misfiled": {
+        "filed_via_form": 2124,
+        "misfiled": 263,
+        "caught": 0.11026615969581749,
+        "fixed": 0.030418250950570342,
+        "flag_precision": 0.048252911813643926,
+        "false_alarm_rate": 0.30736163353036
+      }
+    },
+    "test": {
+      "n": 2327,
+      "macro_f1": 0.1921957671957672,
+      "accuracy": 0.62440911044263,
+      "per_class": {
+        "bug": {
+          "precision": 0.62440911044263,
+          "recall": 1.0,
+          "f1": 0.7687830687830688,
+          "support": 1453
+        },
+        "feature": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 425
+        },
+        "question": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 73
+        },
+        "docs": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 376
+        }
+      },
+      "confusion": {
+        "labels": [
+          "bug",
+          "feature",
+          "question",
+          "docs"
+        ],
+        "matrix": [
+          [
+            1453,
+            0,
+            0,
+            0
+          ],
+          [
+            425,
+            0,
+            0,
+            0
+          ],
+          [
+            73,
+            0,
+            0,
+            0
+          ],
+          [
+            376,
+            0,
+            0,
+            0
+          ]
+        ]
+      },
+      "misfiled": {
+        "filed_via_form": 2199,
+        "misfiled": 124,
+        "caught": 0.18548387096774194,
+        "fixed": 0.06451612903225806,
+        "flag_precision": 0.03253182461103253,
+        "false_alarm_rate": 0.3296385542168675
+      },
+      "macro_f1_ci": [
+        0.18832038574872756,
+        0.19581898106864282
+      ]
+    }
+  }
+}
