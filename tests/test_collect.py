@@ -9,53 +9,74 @@ from triage_lens import collect as c
 def make_response(status=200, payload=None, headers=None):
     resp = requests.Response()
     resp.status_code = status
-    resp._content = json.dumps(payload if payload is not None else []).encode()
+    resp._content = json.dumps(payload if payload is not None else {}).encode()
     resp.headers.update(headers or {})
     return resp
 
 
-def issue(number, **extra):
+def ref(number, repo="o/r"):
+    return {"number": number, "url": f"https://github.com/{repo}/issues/{number}"}
+
+
+def mark(canonical, duplicate, typename="MarkedAsDuplicateEvent"):
+    return {"__typename": typename, "canonical": canonical, "duplicate": duplicate}
+
+
+def node(number, updated="2025-01-01T00:00:00Z", events=(), **extra):
     item = {
         "number": number,
         "title": f"Issue {number}",
         "body": None,
-        "labels": [{"name": "bug"}],
-        "state": "open",
-        "state_reason": None,
-        "created_at": "2025-01-01T00:00:00Z",
-        "updated_at": "2025-01-02T00:00:00Z",
-        "closed_at": None,
-        "user": {"login": "alice", "type": "User"},
-        "author_association": "NONE",
-        "comments": 0,
-        "html_url": f"https://github.com/o/r/issues/{number}",
+        "url": f"https://github.com/o/r/issues/{number}",
+        "state": "CLOSED",
+        "stateReason": "DUPLICATE",
+        "createdAt": "2025-01-01T00:00:00Z",
+        "updatedAt": updated,
+        "closedAt": None,
+        "authorAssociation": "NONE",
+        "author": {"login": "alice", "__typename": "User"},
+        "labels": {"nodes": [{"name": "bug"}]},
+        "comments": {"totalCount": 2},
+        "timelineItems": {"nodes": list(events)},
     }
     item.update(extra)
     return item
 
 
+def page(nodes, cursor=None, remaining=4999):
+    return make_response(
+        200,
+        {
+            "data": {
+                "rateLimit": {"remaining": remaining},
+                "repository": {
+                    "issues": {
+                        "pageInfo": {"hasNextPage": cursor is not None, "endCursor": cursor},
+                        "nodes": nodes,
+                    }
+                },
+            }
+        },
+    )
+
+
 class FakeSession:
-    """Serves a fixed list of responses and records the requested params."""
+    """Serves a fixed list of responses and records the GraphQL variables sent."""
 
     def __init__(self, responses):
         self.responses = list(responses)
         self.calls = []
 
-    def get(self, url, params=None, timeout=None):
-        self.calls.append(dict(params or {}))
+    def post(self, url, json=None, timeout=None):
+        self.calls.append(json["variables"])
         result = self.responses.pop(0)
         if isinstance(result, Exception):
             raise result
         return result
 
 
-def ts(minute):
-    return f"2025-01-01T00:{minute:02d}:00Z"
-
-
-def full_page(first_number, updated):
-    """A full page of PER_PAGE issues, all updated at ``updated``."""
-    return [issue(first_number + i, updated_at=updated) for i in range(c.PER_PAGE)]
+def no_sleep(seconds):
+    pass
 
 
 def read_jsonl(path):
@@ -66,129 +87,136 @@ def read_state(path):
     return json.loads((path / "o__r.state.json").read_text())
 
 
-def test_to_record_keeps_fields_and_normalises_empty_body():
-    record = c.to_record(issue(7))
+def test_to_record_flattens_node():
+    record = c.to_record(node(7))
     assert record["number"] == 7
     assert record["body"] == ""
     assert record["labels"] == ["bug"]
+    assert record["state"] == "closed"
+    assert record["state_reason"] == "duplicate"
     assert record["author"] == "alice"
     assert record["author_type"] == "User"
+    assert record["comments"] == 2
+    assert record["duplicate_of"] == []
 
 
-def test_to_record_handles_missing_user():
-    record = c.to_record(issue(8, user=None))
-    assert record["author"] is None
+def test_to_record_handles_deleted_author():
+    assert c.to_record(node(8, author=None))["author"] is None
+
+
+def test_duplicate_targets_replays_marks_and_unmarks():
+    events = [
+        mark(ref(1), ref(10)),
+        mark(ref(2), ref(10)),
+        mark(ref(1), ref(10), "UnmarkedAsDuplicateEvent"),
+        mark(ref(10), ref(99)),  # this issue is the canonical one: ignored
+        mark(None, ref(10)),  # canonical not accessible: ignored
+    ]
+    assert c.duplicate_targets(10, events) == [ref(2)]
 
 
 def test_rate_limit_delay():
-    assert c.rate_limit_delay(make_response(200)) is None
+    assert c.rate_limit_delay(make_response(200, {"data": {}})) is None
     assert c.rate_limit_delay(make_response(403)) is None  # real permission error
     assert c.rate_limit_delay(make_response(429, headers={"Retry-After": "30"})) == 30
     primary = make_response(
         403, headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1100"}
     )
     assert c.rate_limit_delay(primary, now=1000) == 101
+    in_body = make_response(
+        200, {"errors": [{"type": "RATE_LIMITED"}]}, {"X-RateLimit-Reset": "1010"}
+    )
+    assert c.rate_limit_delay(in_body, now=1000) == 11
 
 
-def test_get_with_retry_waits_out_errors(monkeypatch):
+def test_post_graphql_waits_out_errors():
     sleeps = []
     session = FakeSession(
         [
             requests.ConnectionError(),
             make_response(502),
             make_response(429, headers={"Retry-After": "5"}),
-            make_response(200, [issue(1)]),
+            page([node(1)]),
         ]
     )
-    resp = c.get_with_retry(session, "url", {}, sleep=sleeps.append)
-    assert resp.status_code == 200
+    data = c.post_graphql(session, {}, sleep=sleeps.append)
+    assert data["repository"]["issues"]["nodes"][0]["number"] == 1
     assert sleeps == [1.0, 2.0, 5.0]
 
 
-def test_get_with_retry_raises_on_permission_error():
-    session = FakeSession([make_response(403)])
+def test_post_graphql_raises_on_permission_and_query_errors():
     with pytest.raises(requests.HTTPError):
-        c.get_with_retry(session, "url", {}, sleep=lambda s: None)
+        c.post_graphql(FakeSession([make_response(403)]), {}, sleep=no_sleep)
+    bad_query = make_response(200, {"errors": [{"message": "Field 'x' doesn't exist"}]})
+    with pytest.raises(c.GraphQLError, match="doesn't exist"):
+        c.post_graphql(FakeSession([bad_query]), {}, sleep=no_sleep)
 
 
-def test_next_cursor_moves_to_newest_update():
-    assert c.next_cursor(None, 1, [issue(1, updated_at=ts(1)), issue(2, updated_at=ts(2))]) == (
-        ts(2),
-        1,
-    )
+def test_post_graphql_accepts_partial_errors():
+    resp = page([node(1)])
+    body = json.loads(resp._content)
+    body["errors"] = [{"message": "Could not resolve to a node"}]
+    resp._content = json.dumps(body).encode()
+    data = c.post_graphql(FakeSession([resp]), {}, sleep=no_sleep)
+    assert data["repository"]["issues"]["nodes"]
 
 
-def test_next_cursor_advances_page_when_timestamp_is_stuck():
-    assert c.next_cursor(ts(5), 1, full_page(1, ts(5))) == (ts(5), 2)
-
-
-def test_collect_walks_by_cursor_and_skips_pull_requests(tmp_path):
-    page_one = full_page(1, ts(1))
-    page_one[-1] = issue(100, updated_at=ts(2), pull_request={})
+def test_collect_follows_cursor_and_sets_refresh_point(tmp_path):
     session = FakeSession(
         [
-            make_response(200, page_one),
-            # The cursor is inclusive, so the boundary update comes back again.
-            make_response(
-                200, [issue(100, updated_at=ts(2), pull_request={}), issue(101, updated_at=ts(3))]
-            ),
+            page([node(1, "2025-01-01T00:00:00Z"), node(2, "2025-01-02T00:00:00Z")], "c1"),
+            page([node(3, "2025-01-03T12:00:00Z", events=[mark(ref(1), ref(3))])]),
         ]
     )
-    added = c.collect(session, "o/r", tmp_path, sleep=lambda s: None)
+    added = c.collect(session, "o/r", tmp_path, sleep=no_sleep)
 
-    numbers = [r["number"] for r in read_jsonl(tmp_path / "o__r.jsonl")]
-    assert added == 100
-    assert 100 not in numbers and numbers[-1] == 101
-    assert "since" not in session.calls[0]
-    assert session.calls[1]["since"] == ts(2) and session.calls[1]["page"] == 1
-    assert read_state(tmp_path) == {"since": ts(3), "page": 1}
-
-
-def test_collect_handles_a_full_page_with_one_timestamp(tmp_path):
-    session = FakeSession(
-        [
-            make_response(200, full_page(1, ts(1))),
-            make_response(200, full_page(101, ts(1))),
-            make_response(200, [issue(201, updated_at=ts(2))]),
-        ]
-    )
-    c.collect(session, "o/r", tmp_path, sleep=lambda s: None)
-
-    assert [(call.get("since"), call["page"]) for call in session.calls] == [
-        (None, 1),
-        (ts(1), 1),
-        (ts(1), 2),
-    ]
-    assert len(read_jsonl(tmp_path / "o__r.jsonl")) == 201
-
-
-def test_collect_resumes_and_appends_updated_versions(tmp_path):
-    first = FakeSession([make_response(200, full_page(1, ts(1)))])
-    c.collect(first, "o/r", tmp_path, max_pages=1, sleep=lambda s: None)
-    assert read_state(tmp_path) == {"since": ts(1), "page": 1}
-
-    # Issue 1 was relabelled after the first run: its new version is appended,
-    # while an unchanged repeat of issue 2 is skipped.
-    second = FakeSession(
-        [make_response(200, [issue(2, updated_at=ts(1)), issue(1, updated_at=ts(4))])]
-    )
-    added = c.collect(second, "o/r", tmp_path, sleep=lambda s: None)
-
-    assert second.calls[0]["since"] == ts(1)
-    assert added == 1
     records = read_jsonl(tmp_path / "o__r.jsonl")
-    assert len(records) == 101
-    assert (records[-1]["number"], records[-1]["updated_at"]) == (1, ts(4))
+    assert added == 3
+    assert [r["number"] for r in records] == [1, 2, 3]
+    assert records[-1]["duplicate_of"] == [ref(1)]
+    assert [(call["after"], call["since"]) for call in session.calls] == [
+        (None, None),
+        ("c1", None),
+    ]
+    state = read_state(tmp_path)
+    assert state["cursor"] is None
+    assert state["since"] == "2025-01-03T11:55:00Z"  # newest update minus overlap
 
 
-def test_collect_ignores_state_from_page_based_version(tmp_path):
-    (tmp_path / "o__r.state.json").write_text('{"next_page": 100}')
-    session = FakeSession([make_response(200, [issue(1)])])
-    c.collect(session, "o/r", tmp_path, sleep=lambda s: None)
-    assert session.calls[0] == {
-        "state": "all",
-        "sort": "updated",
-        "direction": "asc",
-        "per_page": c.PER_PAGE,
-        "page": 1,
-    }
+def test_collect_resumes_from_saved_cursor(tmp_path):
+    c.collect(FakeSession([page([node(1)], "c1")]), "o/r", tmp_path, max_pages=1, sleep=no_sleep)
+    assert read_state(tmp_path)["cursor"] == "c1"
+
+    second = FakeSession([page([node(2)])])
+    c.collect(second, "o/r", tmp_path, sleep=no_sleep)
+    assert second.calls[0]["after"] == "c1"
+    assert [r["number"] for r in read_jsonl(tmp_path / "o__r.jsonl")] == [1, 2]
+
+
+def test_refresh_appends_changed_issues_and_skips_repeats(tmp_path):
+    c.collect(
+        FakeSession([page([node(1, "2025-01-01T00:00:00Z")])]), "o/r", tmp_path, sleep=no_sleep
+    )
+
+    # Issue 1 comes back unchanged (overlap), issue 2 was relabelled since.
+    refresh = FakeSession(
+        [page([node(1, "2025-01-01T00:00:00Z"), node(2, "2025-02-01T00:00:00Z")])]
+    )
+    added = c.collect(refresh, "o/r", tmp_path, sleep=no_sleep)
+
+    assert refresh.calls[0]["since"] == "2024-12-31T23:55:00Z"
+    assert added == 1
+    assert [r["number"] for r in read_jsonl(tmp_path / "o__r.jsonl")] == [1, 2]
+
+
+def test_collect_ignores_state_from_rest_version(tmp_path):
+    (tmp_path / "o__r.state.json").write_text('{"since": "2025-01-01T00:00:00Z", "page": 3}')
+    session = FakeSession([page([node(1)])])
+    c.collect(session, "o/r", tmp_path, sleep=no_sleep)
+    assert (session.calls[0]["after"], session.calls[0]["since"]) == (None, None)
+
+
+def test_collect_reports_missing_repository(tmp_path):
+    missing = make_response(200, {"data": {"repository": None}})
+    with pytest.raises(c.GraphQLError, match="not found"):
+        c.collect(FakeSession([missing]), "o/r", tmp_path, sleep=no_sleep)
