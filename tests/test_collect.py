@@ -14,15 +14,7 @@ def make_response(status=200, payload=None, headers=None):
     return resp
 
 
-def ref(number, repo="o/r"):
-    return {"number": number, "url": f"https://github.com/{repo}/issues/{number}"}
-
-
-def mark(canonical, duplicate, typename="MarkedAsDuplicateEvent"):
-    return {"__typename": typename, "canonical": canonical, "duplicate": duplicate}
-
-
-def node(number, updated="2025-01-01T00:00:00Z", events=(), **extra):
+def node(number, updated="2025-01-01T00:00:00Z", **extra):
     item = {
         "number": number,
         "title": f"Issue {number}",
@@ -37,7 +29,6 @@ def node(number, updated="2025-01-01T00:00:00Z", events=(), **extra):
         "author": {"login": "alice", "__typename": "User"},
         "labels": {"nodes": [{"name": "bug"}]},
         "comments": {"totalCount": 2},
-        "timelineItems": {"nodes": list(events)},
     }
     item.update(extra)
     return item
@@ -97,22 +88,10 @@ def test_to_record_flattens_node():
     assert record["author"] == "alice"
     assert record["author_type"] == "User"
     assert record["comments"] == 2
-    assert record["duplicate_of"] == []
 
 
 def test_to_record_handles_deleted_author():
     assert c.to_record(node(8, author=None))["author"] is None
-
-
-def test_duplicate_targets_replays_marks_and_unmarks():
-    events = [
-        mark(ref(1), ref(10)),
-        mark(ref(2), ref(10)),
-        mark(ref(1), ref(10), "UnmarkedAsDuplicateEvent"),
-        mark(ref(10), ref(99)),  # this issue is the canonical one: ignored
-        mark(None, ref(10)),  # canonical not accessible: ignored
-    ]
-    assert c.duplicate_targets(10, events) == [ref(2)]
 
 
 def test_rate_limit_delay():
@@ -165,7 +144,7 @@ def test_collect_follows_cursor_and_sets_refresh_point(tmp_path):
     session = FakeSession(
         [
             page([node(1, "2025-01-01T00:00:00Z"), node(2, "2025-01-02T00:00:00Z")], "c1"),
-            page([node(3, "2025-01-03T12:00:00Z", events=[mark(ref(1), ref(3))])]),
+            page([node(3, "2025-01-03T12:00:00Z")]),
         ]
     )
     added = c.collect(session, "o/r", tmp_path, sleep=no_sleep)
@@ -173,7 +152,6 @@ def test_collect_follows_cursor_and_sets_refresh_point(tmp_path):
     records = read_jsonl(tmp_path / "o__r.jsonl")
     assert added == 3
     assert [r["number"] for r in records] == [1, 2, 3]
-    assert records[-1]["duplicate_of"] == [ref(1)]
     assert [(call["after"], call["since"]) for call in session.calls] == [
         (None, None),
         ("c1", None),
@@ -220,3 +198,17 @@ def test_collect_reports_missing_repository(tmp_path):
     missing = make_response(200, {"data": {"repository": None}})
     with pytest.raises(c.GraphQLError, match="not found"):
         c.collect(FakeSession([missing]), "o/r", tmp_path, sleep=no_sleep)
+
+
+def test_load_latest_keeps_newest_version(tmp_path):
+    path = tmp_path / "o__r.jsonl"
+    lines = [
+        {"number": 1, "updated_at": "2025-01-02T00:00:00Z", "labels": ["new"]},
+        {"number": 1, "updated_at": "2025-01-01T00:00:00Z", "labels": ["old"]},
+        {"number": 2, "updated_at": "2025-01-01T00:00:00Z", "labels": []},
+    ]
+    path.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    latest = c.load_latest(path)
+    assert sorted(latest) == [1, 2]
+    assert latest[1]["labels"] == ["new"]
+    assert c.load_latest(tmp_path / "missing.jsonl") == {}

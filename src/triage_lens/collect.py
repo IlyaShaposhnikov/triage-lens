@@ -6,9 +6,6 @@ of last update; the cursor is saved after every page, so an interrupted run
 resumes where it stopped. Rate limits are respected: the collector waits for the
 limit to reset instead of failing.
 
-Besides the issue itself, each record keeps the issues it was marked as a
-duplicate of (``Duplicate of #N``), taken from the issue timeline.
-
 Usage:
     export GITHUB_TOKEN=github_pat_...
     python -m triage_lens.collect astral-sh/uv pandas-dev/pandas
@@ -19,7 +16,7 @@ Output for each repository (``owner__name`` stem):
     data/raw/astral-sh__uv.state.json   resume cursor and refresh point
 
 Once a run reaches the most recently updated issue, the next run fetches only
-issues created or changed since then (new labels, closed, marked as duplicate).
+issues created or changed since then (new labels, closed).
 A changed issue is appended as a new line; the newest version of each issue
 number wins when the dataset is built.
 """
@@ -69,28 +66,9 @@ query($owner: String!, $name: String!, $first: Int!, $after: String, $since: Dat
         author { login __typename }
         labels(first: 20) { nodes { name } }
         comments { totalCount }
-        timelineItems(first: 20,
-                      itemTypes: [MARKED_AS_DUPLICATE_EVENT, UNMARKED_AS_DUPLICATE_EVENT]) {
-          nodes {
-            __typename
-            ... on MarkedAsDuplicateEvent {
-              canonical { ...Ref }
-              duplicate { ...Ref }
-            }
-            ... on UnmarkedAsDuplicateEvent {
-              canonical { ...Ref }
-              duplicate { ...Ref }
-            }
-          }
-        }
       }
     }
   }
-}
-
-fragment Ref on IssueOrPullRequest {
-  ... on Issue { number url }
-  ... on PullRequest { number url }
 }
 """
 
@@ -146,9 +124,10 @@ def post_graphql(
     session: requests.Session,
     variables: dict[str, Any],
     sleep: Callable[[float], None] = time.sleep,
+    query: str = QUERY,
 ) -> dict[str, Any]:
-    """Run the issues query, waiting out rate limits and retrying transient errors."""
-    payload = {"query": QUERY, "variables": variables}
+    """Run a GraphQL query, waiting out rate limits and retrying transient errors."""
+    payload = {"query": query, "variables": variables}
     for attempt in range(MAX_ATTEMPTS):
         try:
             resp = session.post(GRAPHQL_URL, json=payload, timeout=TIMEOUT_S)
@@ -172,28 +151,10 @@ def post_graphql(
             messages = "; ".join(error.get("message", "?") for error in body["errors"])
             if not body.get("data"):
                 raise GraphQLError(messages)
-            # Partial errors, e.g. a duplicate pointing into a deleted repository.
+            # Partial errors, e.g. a referenced object in a deleted repository.
             log.warning("GraphQL returned partial errors: %s", messages)
         return body["data"]
     raise GraphQLError(f"Giving up after {MAX_ATTEMPTS} attempts")
-
-
-def duplicate_targets(issue_number: int, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Issues this one is currently marked as a duplicate of.
-
-    Timeline events are replayed in order: a mark adds the canonical issue, an
-    unmark removes it. Events where this issue is the canonical one are ignored.
-    """
-    targets: dict[str, dict[str, Any]] = {}
-    for event in events:
-        canonical, duplicate = event.get("canonical"), event.get("duplicate")
-        if not canonical or not duplicate or duplicate.get("number") != issue_number:
-            continue
-        if event["__typename"] == "MarkedAsDuplicateEvent":
-            targets[canonical["url"]] = {"number": canonical["number"], "url": canonical["url"]}
-        else:
-            targets.pop(canonical["url"], None)
-    return list(targets.values())
 
 
 def to_record(node: dict[str, Any]) -> dict[str, Any]:
@@ -214,7 +175,6 @@ def to_record(node: dict[str, Any]) -> dict[str, Any]:
         "author_type": author.get("__typename"),
         "author_association": node.get("authorAssociation"),
         "comments": node["comments"]["totalCount"],
-        "duplicate_of": duplicate_targets(node["number"], node["timelineItems"]["nodes"]),
         "url": node["url"],
     }
 
@@ -246,6 +206,21 @@ def load_seen_versions(path: Path) -> set[tuple[int, str]]:
                 record = json.loads(line)
                 seen.add((record["number"], record["updated_at"]))
     return seen
+
+
+def load_latest(path: Path) -> dict[int, dict[str, Any]]:
+    """Newest saved version of every issue in a JSON Lines file, by issue number."""
+    latest: dict[int, dict[str, Any]] = {}
+    if not path.exists():
+        return latest
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                record = json.loads(line)
+                old = latest.get(record["number"])
+                if old is None or record["updated_at"] >= old["updated_at"]:
+                    latest[record["number"]] = record
+    return latest
 
 
 def refresh_point(newest: str) -> str:
