@@ -11,9 +11,14 @@ repository and model in ``data/embeddings``. The cache is keyed by issue number
 and a hash of the text: a later run encodes only new or changed issues. The same
 vectors are reused later for duplicate search.
 
+``--input prose`` embeds the title and the author's prose without code blocks,
+REPL lines and tracebacks (see ``dataset.prose_text``). The encoder reads only
+the first 256 tokens, and in pandas bug reports the code comes first.
+
 Usage:
     pip install -e ".[embeddings]"
     python -m triage_lens.embeddings astral-sh/uv pandas-dev/pandas
+    python -m triage_lens.embeddings astral-sh/uv pandas-dev/pandas --input prose
     python -m triage_lens.embeddings astral-sh/uv --model sentence-transformers/all-mpnet-base-v2
 """
 
@@ -31,7 +36,7 @@ from typing import Any
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
-from triage_lens.dataset import CLASSES, REPOS
+from triage_lens.dataset import CLASSES, REPOS, prose_text
 from triage_lens.evaluate import load_dataset, macro_f1, print_tables, save_result, score_model
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -39,6 +44,10 @@ C_GRID = (0.25, 1.0, 4.0, 16.0)
 SEED = 42
 
 Encoder = Callable[[list[str]], np.ndarray]
+INPUTS: dict[str, Callable[[dict[str, Any]], str]] = {
+    "full": lambda record: record["text"],
+    "prose": prose_text,
+}
 log = logging.getLogger("triage_lens.embeddings")
 
 
@@ -97,12 +106,16 @@ def save_cache(path: Path, cache: dict[tuple[int, str], np.ndarray]) -> None:
 
 
 def embed_records(
-    records: Sequence[dict[str, Any]], encode: Encoder, cache_path: Path
+    records: Sequence[dict[str, Any]],
+    encode: Encoder,
+    cache_path: Path,
+    to_text: Callable[[dict[str, Any]], str] = INPUTS["full"],
 ) -> np.ndarray:
     """Vectors for ``records`` in order, encoding only what the cache lacks."""
     cache = load_cache(cache_path)
-    keys = [(r["number"], text_hash(r["text"])) for r in records]
-    missing = {key: r["text"] for key, r in zip(keys, records, strict=True) if key not in cache}
+    texts = [to_text(r) for r in records]
+    keys = [(r["number"], text_hash(text)) for r, text in zip(records, texts, strict=True)]
+    missing = {key: text for key, text in zip(keys, texts, strict=True) if key not in cache}
     if missing:
         log.info("encoding %d texts (%d cached)", len(missing), len(keys) - len(missing))
         started = time.perf_counter()
@@ -160,12 +173,16 @@ def run(
     data_dir: Path,
     cache_dir: Path,
     results_dir: Path,
+    input_kind: str = "full",
 ) -> dict[str, Any]:
     stem = repo.replace("/", "__")
     slug = model_slug(model_name)
+    suffix = "" if input_kind == "full" else f"_{input_kind}"
     splits = load_dataset(data_dir / f"{stem}.dataset.jsonl")
     records = [r for split in ("train", "validation", "test") for r in splits[split]]
-    vectors = embed_records(records, encode, cache_dir / f"{stem}.{slug}.npz")
+    vectors = embed_records(
+        records, encode, cache_dir / f"{stem}.{slug}{suffix}.npz", INPUTS[input_kind]
+    )
 
     by_number = {r["number"]: v for r, v in zip(records, vectors, strict=True)}
 
@@ -179,13 +196,14 @@ def run(
         matrix(validation),
         [r["label"] for r in validation],
     )
-    params = {"encoder": model_name, "dim": int(vectors.shape[1]), **params}
+    params = {"encoder": model_name, "input": input_kind, "dim": int(vectors.shape[1]), **params}
 
-    name = f"emb_{slug}"
+    name = f"emb_{slug}{suffix}"
     scores = score_model(name, lambda part: proba_in_class_order(classifier, matrix(part)), splits)
     save_result(results_dir, repo, name, scores, params)
 
-    table = load_other_results(results_dir, repo, ["trust_form", "tfidf_logreg"])
+    others = ["trust_form", "tfidf_logreg"] + ([f"emb_{slug}"] if suffix else [])
+    table = load_other_results(results_dir, repo, others)
     table[name] = scores["test"]
     print_tables(repo, table)
     print(
@@ -199,6 +217,7 @@ def main(argv: list[str] | None = None, encoder_factory=load_sentence_transforme
     parser = argparse.ArgumentParser(description="Sentence embeddings + logistic regression.")
     parser.add_argument("repos", nargs="+", choices=sorted(REPOS), help="repositories")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="sentence-transformers model")
+    parser.add_argument("--input", choices=sorted(INPUTS), default="full", help="text to embed")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--data", type=Path, default=Path("data/processed"))
     parser.add_argument("--cache", type=Path, default=Path("data/embeddings"))
@@ -208,7 +227,7 @@ def main(argv: list[str] | None = None, encoder_factory=load_sentence_transforme
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     encode = encoder_factory(args.model, args.batch_size)
     for repo in args.repos:
-        run(repo, args.model, encode, args.data, args.cache, args.results)
+        run(repo, args.model, encode, args.data, args.cache, args.results, args.input)
 
 
 if __name__ == "__main__":

@@ -272,3 +272,29 @@ def test_main_writes_dataset(tmp_path, capsys):
     written = (tmp_path / "out" / "astral-sh__uv.dataset.jsonl").read_text().splitlines()
     assert len(written) == 10
     assert "astral-sh/uv: 10 issues kept" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- prose
+
+
+def test_prose_text_drops_code_and_keeps_description():
+    body = ds.clean_body(PANDAS_BUG_FORM, PANDAS.metadata_sections)
+    prose = ds.prose_text({"title": "Wrong sum", "body": body})
+    assert prose == "Wrong sum\n\nThe sum is wrong.\n\nIt should be 10."
+
+
+def test_prose_text_drops_repl_lines_and_tracebacks_outside_fences():
+    body = (
+        "Calling `df.sum()` fails:\n"
+        ">>> df.sum()\n"
+        "Traceback (most recent call last):\n"
+        '  File "x.py", line 1, in <module>\n'
+        "Is this expected?"
+    )
+    assert ds.prose_text({"title": "t", "body": body}) == (
+        "t\n\nCalling `df.sum()` fails:\nIs this expected?"
+    )
+
+
+def test_prose_text_of_code_only_issue_is_the_title():
+    assert ds.prose_text({"title": "t", "body": "```\nx = 1\n```"}) == "t"

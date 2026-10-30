@@ -177,6 +177,27 @@ def clean_body(body: str, metadata_sections: frozenset[str]) -> str:
     return cleaned.strip()
 
 
+FENCED_BLOCK = re.compile(r"^\s*(```|~~~).*?^\s*\1[^\n]*$", re.MULTILINE | re.DOTALL)
+CODE_LINE = re.compile(
+    r"^(?:[ \t]*(?:>>>|\.\.\.)(?:[ \t].*)?|[ \t]*Traceback \(most recent call last\):.*"
+    r"|[ \t]+File \".*)(?:\n|$)",
+    re.MULTILINE,
+)
+
+
+def prose_text(record: dict[str, Any]) -> str:
+    """Title and the author's prose: code blocks, REPL lines and tracebacks removed.
+
+    Used for models that read only the first few hundred tokens: in pandas bug
+    reports the reproducible example comes before the description, so the prose
+    would otherwise be cut off. Inline `code` is kept.
+    """
+    body = FENCED_BLOCK.sub("", record["body"])
+    body = CODE_LINE.sub("", body)
+    body = re.sub(r"\n{3,}", "\n\n", body).strip()
+    return f"{record['title']}\n\n{body}".strip()
+
+
 # --------------------------------------------------------------------------- dataset
 
 

@@ -26,7 +26,15 @@ class FakeEncoder:
 
 
 def rec(number, text, label="bug", form=None, split="train"):
-    return {"number": number, "text": text, "label": label, "form": form, "split": split}
+    return {
+        "number": number,
+        "title": text,
+        "body": "```\ncode\n```",
+        "text": text,
+        "label": label,
+        "form": form,
+        "split": split,
+    }
 
 
 def test_model_slug():
@@ -91,3 +99,35 @@ def test_main_end_to_end(tmp_path, capsys):
     # A second run reads every vector from the cache.
     em.main([*args, "--results", str(results)], encoder_factory=factory)
     assert len(encode.calls) == 1
+
+
+def test_embed_records_with_prose_input(tmp_path):
+    encode = FakeEncoder()
+    em.embed_records([rec(1, "crash")], encode, tmp_path / "c.npz", em.INPUTS["prose"])
+    assert encode.calls == [["crash"]]  # the code block in the body is gone
+
+
+def test_prose_run_is_saved_under_its_own_name(tmp_path, capsys):
+    lines, number = [], 0
+    for split, n in (("train", 8), ("validation", 3), ("test", 3)):
+        for label, word in KEYWORDS.items():
+            for i in range(n):
+                number += 1
+                lines.append(rec(number, f"{word} text {i}", label, form=label, split=split))
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "astral-sh__uv.dataset.jsonl").write_text(
+        "\n".join(json.dumps(line) for line in lines) + "\n"
+    )
+    args = ["astral-sh/uv", "--data", str(data), "--cache", str(tmp_path / "emb")]
+    args += ["--results", str(tmp_path / "results"), "--input", "prose"]
+    em.main(args, encoder_factory=lambda name, batch: FakeEncoder())
+
+    saved = tmp_path / "results" / "astral-sh__uv" / "emb_all-minilm-l6-v2_prose.json"
+    assert json.loads(saved.read_text())["params"]["input"] == "prose"
+    assert (tmp_path / "emb" / "astral-sh__uv.all-minilm-l6-v2_prose.npz").exists()
+    out = capsys.readouterr().out
+    header = next(line for line in out.splitlines() if line.startswith("model"))
+    row = next(line for line in out.splitlines() if line.startswith("emb_all-minilm-l6-v2_prose"))
+    assert row.index("%") > len("emb_all-minilm-l6-v2_prose")  # columns stay aligned
+    assert header.index("macroF1") >= len("emb_all-minilm-l6-v2_prose")

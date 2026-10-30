@@ -408,30 +408,36 @@ def _diff(entry: dict[str, Any] | None, scale: float = 100) -> str:
     return f"{scale * entry['diff']:+6.1f} [{scale * lo:+5.1f},{scale * hi:+5.1f}]"
 
 
-STANDALONE_HEADER = (
-    f"{'model':<16}{'macroF1':>8} {'95% CI':<14}{'acc':>8}   {'acc vs form (pp)':<22}"
-)
-FLAG_HEADER = (
-    f"{'model':<16}{'AP':>6} {'thr':>5}  {'caught':>7} {'fixed':>7} {'prec':>7}"
-    f" {'false al.':>9}   {'with form: acc vs form (pp)':<28}  {'no form: acc vs majority (pp)'}"
-)
+MODEL_COLUMN = 16
 
 
-def format_standalone(model: str, result: dict[str, Any]) -> str:
+def standalone_header(width: int = MODEL_COLUMN) -> str:
+    return f"{'model':<{width}}{'macroF1':>8} {'95% CI':<14}{'acc':>8}   {'acc vs form (pp)':<22}"
+
+
+def flag_header(width: int = MODEL_COLUMN) -> str:
+    return (
+        f"{'model':<{width}}{'AP':>6} {'thr':>5}  {'caught':>7} {'fixed':>7} {'prec':>7}"
+        f" {'false al.':>9}   {'with form: acc vs form (pp)':<28}"
+        f"  {'no form: acc vs majority (pp)'}"
+    )
+
+
+def format_standalone(model: str, result: dict[str, Any], width: int = MODEL_COLUMN) -> str:
     ci = result.get("macro_f1_ci")
     ci_text = f"[{ci[0]:.3f}-{ci[1]:.3f}]" if ci else " " * 13
     return (
-        f"{model:<16}{result['macro_f1']:>8.3f} {ci_text:<14}{_pct(result['accuracy'])}   "
+        f"{model:<{width}}{result['macro_f1']:>8.3f} {ci_text:<14}{_pct(result['accuracy'])}   "
         f"{_diff(result.get('vs_form', {}).get('accuracy'))}"
     )
 
 
-def format_flagging(model: str, result: dict[str, Any]) -> str:
+def format_flagging(model: str, result: dict[str, Any], width: int = MODEL_COLUMN) -> str:
     f = result["flagging"]
     ap = "   -  " if f["average_precision"] is None else f"{f['average_precision']:6.3f}"
     thr = "  -  " if f["threshold"] is None else f"{f['threshold']:5.2f}"
     return (
-        f"{model:<16}{ap} {thr}  {_pct(f['caught'])} {_pct(f['fixed'])} "
+        f"{model:<{width}}{ap} {thr}  {_pct(f['caught'])} {_pct(f['fixed'])} "
         f"{_pct(f['flag_precision'])} {_pct(f['false_alarm_rate']):>9}   "
         f"{_subset_cell(f, 'with_form'):<28}  {_subset_cell(f, 'no_form')}"
     )
@@ -453,11 +459,12 @@ def print_tables(repo: str, results: dict[str, dict[str, Any]]) -> None:
         f"\n=== {repo}: test {test['n']} issues: {f['filed']} filed via a form "
         f"({f['misfiled']} misfiled), {no_form} without one"
     )
+    width = max(MODEL_COLUMN, *(len(model) + 2 for model in results))
     print("\nStandalone (model replaces the form):")
-    print(STANDALONE_HEADER)
+    print(standalone_header(width))
     for model, result in results.items():
-        print(format_standalone(model, result))
+        print(format_standalone(model, result, width))
     print(f"\nForm + flag (target flag precision {TARGET_FLAG_PRECISION:.0%} on validation):")
-    print(FLAG_HEADER)
+    print(flag_header(width))
     for model, result in results.items():
-        print(format_flagging(model, result))
+        print(format_flagging(model, result, width))
