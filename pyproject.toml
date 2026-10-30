@@ -15,6 +15,7 @@ dependencies = ["requests>=2.32", "numpy>=1.26", "scikit-learn>=1.5"]
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 embeddings = ["sentence-transformers>=3"]
+transformer = ["torch>=2.2", "transformers>=4.46", "accelerate>=0.26"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
