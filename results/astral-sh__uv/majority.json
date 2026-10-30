@@ -81,7 +81,19 @@
         "false_alarm_rate": 0.0,
         "combined": {
           "accuracy": 0.7845993756503642,
-          "macro_f1": 0.5944642510507094
+          "macro_f1": 0.5944642510507094,
+          "subsets": {
+            "with_form": {
+              "n": 867,
+              "accuracy": 0.8362168396770473,
+              "macro_f1": 0.6291058732891763
+            },
+            "no_form": {
+              "n": 94,
+              "accuracy": 0.30851063829787234,
+              "macro_f1": 0.11788617886178862
+            }
+          }
         }
       }
     },
@@ -164,6 +176,54 @@
         "combined": {
           "accuracy": 0.77466251298027,
           "macro_f1": 0.5742702499128448,
+          "subsets": {
+            "with_form": {
+              "n": 856,
+              "accuracy": 0.8364485981308412,
+              "macro_f1": 0.6188126604519224,
+              "vs_form": {
+                "macro_f1": {
+                  "diff": 0.0,
+                  "ci": [
+                    0.0,
+                    0.0
+                  ],
+                  "p_a_better": 0.0
+                },
+                "accuracy": {
+                  "diff": 0.0,
+                  "ci": [
+                    0.0,
+                    0.0
+                  ],
+                  "p_a_better": 0.0
+                }
+              }
+            },
+            "no_form": {
+              "n": 107,
+              "accuracy": 0.2803738317757009,
+              "macro_f1": 0.10948905109489052,
+              "vs_form": {
+                "macro_f1": {
+                  "diff": 0.0,
+                  "ci": [
+                    0.0,
+                    0.0
+                  ],
+                  "p_a_better": 0.0
+                },
+                "accuracy": {
+                  "diff": 0.0,
+                  "ci": [
+                    0.0,
+                    0.0
+                  ],
+                  "p_a_better": 0.0
+                }
+              }
+            }
+          },
           "vs_form": {
             "macro_f1": {
               "diff": 0.0,

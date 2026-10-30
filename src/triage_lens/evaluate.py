@@ -30,6 +30,13 @@ other class. For issues filed without a form the model's own prediction is used.
   (share of correctly filed issues flagged), and the accuracy / macro-F1 of the
   combined system with its paired difference to the form alone.
 
+The combined result is also split into two subsets, because they answer
+different questions and mixing them overstates what flagging achieves:
+
+* ``with_form`` — issues filed through a form: the gain comes only from flags;
+* ``no_form`` — issues filed without a form (or through a form outside the four
+  classes): the model's own prediction against the majority-class fallback.
+
 Results are saved as JSON under results/<owner__name>/<model>.json.
 """
 
@@ -293,8 +300,27 @@ def flag_report(records: Records, probs: np.ndarray, threshold: float | None) ->
         "fixed": share(fixed, counts["misfiled"]),
         "flag_precision": share(counts["true_flags"], counts["flags"]),
         "false_alarm_rate": share(counts["false_flags"], counts["filed"] - counts["misfiled"]),
-        "combined": {"accuracy": accuracy(y_true, preds), "macro_f1": macro_f1(y_true, preds)},
+        "combined": {
+            **_scores(y_true, preds),
+            "subsets": {
+                name: {"n": len(idx), **_scores([y_true[i] for i in idx], [preds[i] for i in idx])}
+                for name, idx in subset_indices(records).items()
+            },
+        },
     }, preds
+
+
+def subset_indices(records: Records) -> dict[str, list[int]]:
+    """Positions of issues filed through one of the four forms, and of the rest."""
+    with_form = [i for i, r in enumerate(records) if r["form"] in CLASSES]
+    no_form = [i for i, r in enumerate(records) if r["form"] not in CLASSES]
+    return {"with_form": with_form, "no_form": no_form}
+
+
+def _scores(y_true: Sequence[str], y_pred: Sequence[str]) -> dict[str, float | None]:
+    if not y_true:
+        return {"accuracy": None, "macro_f1": None}
+    return {"accuracy": accuracy(y_true, y_pred), "macro_f1": macro_f1(y_true, y_pred)}
 
 
 # --------------------------------------------------------------------------- orchestration
@@ -324,6 +350,16 @@ def evaluate(
             name: paired_bootstrap(y_true, combined, reference, metric)
             for name, metric in METRICS.items()
         }
+        for subset, idx in subset_indices(records).items():
+            if not idx:
+                continue
+            true = [y_true[i] for i in idx]
+            result["flagging"]["combined"]["subsets"][subset]["vs_form"] = {
+                name: paired_bootstrap(
+                    true, [combined[i] for i in idx], [reference[i] for i in idx], metric
+                )
+                for name, metric in METRICS.items()
+            }
     return result
 
 
@@ -377,7 +413,7 @@ STANDALONE_HEADER = (
 )
 FLAG_HEADER = (
     f"{'model':<16}{'AP':>6} {'thr':>5}  {'caught':>7} {'fixed':>7} {'prec':>7}"
-    f" {'false al.':>9}   {'form+flag acc':>13}  {'vs form (pp)':<22}"
+    f" {'false al.':>9}   {'with form: acc vs form (pp)':<28}  {'no form: acc vs majority (pp)'}"
 )
 
 
@@ -397,18 +433,25 @@ def format_flagging(model: str, result: dict[str, Any]) -> str:
     return (
         f"{model:<16}{ap} {thr}  {_pct(f['caught'])} {_pct(f['fixed'])} "
         f"{_pct(f['flag_precision'])} {_pct(f['false_alarm_rate']):>9}   "
-        f"{_pct(f['combined']['accuracy']):>13}  "
-        f"{_diff(f['combined'].get('vs_form', {}).get('accuracy'))}"
+        f"{_subset_cell(f, 'with_form'):<28}  {_subset_cell(f, 'no_form')}"
     )
+
+
+def _subset_cell(flagging: dict[str, Any], subset: str) -> str:
+    entry = flagging["combined"]["subsets"][subset]
+    if not entry["n"]:
+        return "-"
+    return f"{_pct(entry['accuracy'])} {_diff(entry.get('vs_form', {}).get('accuracy'))}"
 
 
 def print_tables(repo: str, results: dict[str, dict[str, Any]]) -> None:
     """Summary of test results of several models for one repository."""
     test = next(iter(results.values()))
     f = test["flagging"]
+    no_form = f["combined"]["subsets"]["no_form"]["n"]
     print(
-        f"\n=== {repo}: test {test['n']} issues, {f['filed']} filed via a form, "
-        f"{f['misfiled']} misfiled"
+        f"\n=== {repo}: test {test['n']} issues: {f['filed']} filed via a form "
+        f"({f['misfiled']} misfiled), {no_form} without one"
     )
     print("\nStandalone (model replaces the form):")
     print(STANDALONE_HEADER)

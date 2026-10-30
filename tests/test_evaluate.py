@@ -139,6 +139,43 @@ def test_flag_report_without_threshold_keeps_the_form():
     assert preds == ["bug"] * 10
 
 
+def test_combined_subsets_separate_flags_from_no_form_issues():
+    # Two filed issues (one misfiled and flagged), two without a form.
+    records = [
+        rec("question", form="bug"),
+        rec("bug", form="bug"),
+        rec("docs"),
+        rec("bug", form="other"),
+    ]
+    p = probs([0.1, 0.0, 0.9, 0.0], BUG, DOCS, BUG)
+    report, _ = ev.flag_report(records, p, threshold=0.5)
+    subsets = report["combined"]["subsets"]
+    assert subsets["with_form"] == {"n": 2, "accuracy": 1.0, "macro_f1": pytest.approx(0.5)}
+    assert subsets["no_form"]["n"] == 2 and subsets["no_form"]["accuracy"] == 1.0
+    assert ev.subset_indices(records) == {"with_form": [0, 1], "no_form": [2, 3]}
+
+
+def test_subset_differences_to_the_form():
+    # No flags (threshold None): the with-form subset equals the form exactly,
+    # so any gain must come from the no-form subset.
+    records = [rec("bug", form="bug"), rec("question", form="bug"), rec("docs"), rec("docs")]
+    p = probs(BUG, BUG, DOCS, DOCS)
+    reference = ev.form_predictions(records, "bug")
+    result = ev.evaluate(records, p, threshold=None, reference=reference)
+    subsets = result["flagging"]["combined"]["subsets"]
+    assert subsets["with_form"]["vs_form"]["accuracy"]["diff"] == 0.0
+    assert subsets["no_form"]["vs_form"]["accuracy"]["diff"] == 1.0
+    assert result["flagging"]["combined"]["vs_form"]["accuracy"]["diff"] == pytest.approx(0.5)
+
+
+def test_subsets_handle_split_without_no_form_issues():
+    records = [rec("bug", form="bug")]
+    result = ev.evaluate(records, probs(BUG), None, reference=["bug"])
+    no_form = result["flagging"]["combined"]["subsets"]["no_form"]
+    assert no_form == {"n": 0, "accuracy": None, "macro_f1": None}
+    assert ev.format_flagging("m", result).rstrip().endswith("-")
+
+
 def test_combined_uses_model_for_issues_without_form():
     preds, _ = ev.combined_predictions([rec("docs")], probs(DOCS), threshold=None)
     assert preds == ["docs"]
