@@ -9,6 +9,9 @@
   validation split by macro-F1. Trains in seconds on a CPU and sets the bar the
   transformer models have to clear.
 
+Every model returns class probabilities; ``majority`` and ``trust_form`` return
+one-hot vectors, so they never raise a flag in the form + flag view.
+
 Usage:
     python -m triage_lens.baselines astral-sh/uv pandas-dev/pandas
 """
@@ -16,41 +19,43 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from collections import Counter
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from triage_lens.dataset import CLASSES, REPOS
 from triage_lens.evaluate import (
-    TABLE_HEADER,
-    evaluate,
-    format_row,
+    form_predictions,
     load_dataset,
     macro_f1,
+    majority_class,
+    one_hot,
+    print_tables,
     save_result,
+    score_model,
 )
 
 C_GRID = (0.25, 1.0, 4.0, 16.0)
 SEED = 42
 
 
-def majority_class(train: Sequence[dict[str, Any]]) -> str:
-    return Counter(r["label"] for r in train).most_common(1)[0][0]
+def proba_majority(train, records) -> np.ndarray:
+    return one_hot([majority_class(train)] * len(records))
 
 
-def predict_majority(train, records) -> list[str]:
-    label = majority_class(train)
-    return [label] * len(records)
+def proba_trust_form(train, records) -> np.ndarray:
+    return one_hot(form_predictions(records, majority_class(train)))
 
 
-def predict_trust_form(train, records) -> list[str]:
-    fallback = majority_class(train)
-    return [r["form"] if r["form"] in CLASSES else fallback for r in records]
+def proba_in_class_order(model: Pipeline, records) -> np.ndarray:
+    """predict_proba with columns reordered to CLASSES."""
+    probs = model.predict_proba([r["text"] for r in records])
+    order = [list(model.classes_).index(cls) for cls in CLASSES]
+    return probs[:, order]
 
 
 def make_tfidf_logreg(c: float) -> Pipeline:
@@ -93,28 +98,23 @@ def fit_tfidf_logreg(train, validation) -> tuple[Pipeline, dict[str, Any]]:
 def run(repo: str, data_dir: Path, results_dir: Path) -> dict[str, dict[str, Any]]:
     stem = repo.replace("/", "__")
     splits = load_dataset(data_dir / f"{stem}.dataset.jsonl")
-    train, validation, test = splits["train"], splits["validation"], splits["test"]
+    train, validation = splits["train"], splits["validation"]
 
     model, params = fit_tfidf_logreg(train, validation)
-    predictors = {
-        "majority": lambda records: predict_majority(train, records),
-        "trust_form": lambda records: predict_trust_form(train, records),
-        "tfidf_logreg": lambda records: list(model.predict([r["text"] for r in records])),
+    models = {
+        "majority": (lambda records: proba_majority(train, records), None),
+        "trust_form": (lambda records: proba_trust_form(train, records), None),
+        "tfidf_logreg": (lambda records: proba_in_class_order(model, records), params),
     }
 
     summary = {}
-    print(f"\n=== {repo} (test: {len(test)} issues)")
-    print(TABLE_HEADER)
-    for name, predict in predictors.items():
-        scores = {
-            "validation": evaluate(validation, predict(validation), bootstrap=False),
-            "test": evaluate(test, predict(test)),
-        }
-        save_result(results_dir, repo, name, scores, params if name == "tfidf_logreg" else None)
+    for name, (predict_proba, model_params) in models.items():
+        scores = score_model(name, predict_proba, splits)
+        save_result(results_dir, repo, name, scores, model_params)
         summary[name] = scores["test"]
-        print(format_row(name, scores["test"]))
+    print_tables(repo, summary)
     print(
-        f"tfidf_logreg: C={params['C']} (validation macro-F1 by C: "
+        f"\ntfidf_logreg: C={params['C']} (validation macro-F1 by C: "
         f"{params['validation_macro_f1_by_C']})"
     )
     return summary

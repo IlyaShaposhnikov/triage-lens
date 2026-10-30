@@ -75,13 +75,22 @@
           ]
         ]
       },
-      "misfiled": {
-        "filed_via_form": 867,
+      "flagging": {
+        "threshold": null,
+        "average_precision": 0.24770314005339727,
+        "filed": 867,
         "misfiled": 142,
-        "caught": 0.4788732394366197,
-        "fixed": 0.36619718309859156,
-        "flag_precision": 0.25660377358490566,
-        "false_alarm_rate": 0.2717241379310345
+        "flags": 0,
+        "true_flags": 0,
+        "false_flags": 0,
+        "caught": 0.0,
+        "fixed": 0.0,
+        "flag_precision": null,
+        "false_alarm_rate": 0.0,
+        "combined": {
+          "accuracy": 0.8251821019771072,
+          "macro_f1": 0.7756506929040718
+        }
       }
     },
     "test": {
@@ -148,18 +157,67 @@
           ]
         ]
       },
-      "misfiled": {
-        "filed_via_form": 856,
+      "flagging": {
+        "threshold": null,
+        "average_precision": 0.29151251535283523,
+        "filed": 856,
         "misfiled": 140,
-        "caught": 0.5071428571428571,
-        "fixed": 0.4357142857142857,
-        "flag_precision": 0.27413127413127414,
-        "false_alarm_rate": 0.26256983240223464
+        "flags": 0,
+        "true_flags": 0,
+        "false_flags": 0,
+        "caught": 0.0,
+        "fixed": 0.0,
+        "flag_precision": null,
+        "false_alarm_rate": 0.0,
+        "combined": {
+          "accuracy": 0.8213914849428868,
+          "macro_f1": 0.7404953224434734,
+          "vs_form": {
+            "macro_f1": {
+              "diff": 0.16622507253062857,
+              "ci": [
+                0.09702836962604375,
+                0.22057056197588673
+              ],
+              "p_a_better": 1.0
+            },
+            "accuracy": {
+              "diff": 0.04672897196261683,
+              "ci": [
+                0.031152647975077885,
+                0.06230529595015577
+              ],
+              "p_a_better": 1.0
+            }
+          }
+        }
       },
       "macro_f1_ci": [
         0.5876818338772034,
         0.6942608332650881
-      ]
+      ],
+      "accuracy_ci": [
+        0.6625129802699896,
+        0.7165368639667704
+      ],
+      "vs_form": {
+        "macro_f1": {
+          "diff": 0.07169353983684357,
+          "ci": [
+            0.010884605656615698,
+            0.12264943675324262
+          ],
+          "p_a_better": 0.987
+        },
+        "accuracy": {
+          "diff": -0.08515057113187952,
+          "ci": [
+            -0.1235721703011422,
+            -0.05088265835929395
+          ],
+          "p_a_better": 0.0
+        }
+      }
     }
   }
 }
