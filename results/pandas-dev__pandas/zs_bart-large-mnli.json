@@ -1,0 +1,297 @@
+{
+  "repo": "pandas-dev/pandas",
+  "model": "zs_bart-large-mnli",
+  "params": {
+    "kind": "zeroshot",
+    "base_model": "facebook/bart-large-mnli",
+    "input": "full",
+    "hypothesis_template": "This GitHub issue is {}.",
+    "labels": {
+      "bug": "a bug report",
+      "feature": "a feature request",
+      "question": "a usage question",
+      "docs": "a documentation problem"
+    },
+    "max_chars": 2000,
+    "seconds": 719,
+    "device": "Tesla T4",
+    "limit": null,
+    "dataset_sha1": "6bdea34dbc34321621551f154c822a95ca7f59db",
+    "classes": [
+      "bug",
+      "feature",
+      "question",
+      "docs"
+    ]
+  },
+  "scores": {
+    "validation": {
+      "n": 2326,
+      "macro_f1": 0.3770720507432608,
+      "accuracy": 0.29707652622527947,
+      "per_class": {
+        "bug": {
+          "precision": 0.8365019011406845,
+          "recall": 0.1588447653429603,
+          "f1": 0.2669902912621359,
+          "support": 1385
+        },
+        "feature": {
+          "precision": 0.7477477477477478,
+          "recall": 0.4139650872817955,
+          "f1": 0.5329052969502408,
+          "support": 401
+        },
+        "question": {
+          "precision": 0.10012135922330097,
+          "recall": 0.8048780487804879,
+          "f1": 0.17808958445763626,
+          "support": 205
+        },
+        "docs": {
+          "precision": 0.7253886010362695,
+          "recall": 0.417910447761194,
+          "f1": 0.5303030303030303,
+          "support": 335
+        }
+      },
+      "confusion": {
+        "labels": [
+          "bug",
+          "feature",
+          "question",
+          "docs"
+        ],
+        "matrix": [
+          [
+            220,
+            15,
+            1107,
+            43
+          ],
+          [
+            11,
+            166,
+            218,
+            6
+          ],
+          [
+            25,
+            11,
+            165,
+            4
+          ],
+          [
+            7,
+            30,
+            158,
+            140
+          ]
+        ]
+      },
+      "flagging": {
+        "threshold": null,
+        "average_precision": 0.16354608310921448,
+        "filed": 2124,
+        "misfiled": 263,
+        "flags": 0,
+        "true_flags": 0,
+        "false_flags": 0,
+        "caught": 0.0,
+        "fixed": 0.0,
+        "flag_precision": null,
+        "false_alarm_rate": 0.0,
+        "combined": {
+          "accuracy": 0.827171109200344,
+          "macro_f1": 0.703474343493441,
+          "subsets": {
+            "with_form": {
+              "n": 2124,
+              "accuracy": 0.8761770244821092,
+              "macro_f1": 0.7328690464751466
+            },
+            "no_form": {
+              "n": 202,
+              "accuracy": 0.3118811881188119,
+              "macro_f1": 0.3428584590231867
+            }
+          }
+        }
+      }
+    },
+    "test": {
+      "n": 2327,
+      "macro_f1": 0.3515422819811299,
+      "accuracy": 0.26557799742157284,
+      "per_class": {
+        "bug": {
+          "precision": 0.896,
+          "recall": 0.15416379903647626,
+          "f1": 0.2630651790957134,
+          "support": 1453
+        },
+        "feature": {
+          "precision": 0.7417840375586855,
+          "recall": 0.37176470588235294,
+          "f1": 0.4952978056426332,
+          "support": 425
+        },
+        "question": {
+          "precision": 0.037920489296636085,
+          "recall": 0.8493150684931506,
+          "f1": 0.07259953161592506,
+          "support": 73
+        },
+        "docs": {
+          "precision": 0.759825327510917,
+          "recall": 0.4627659574468085,
+          "f1": 0.5752066115702479,
+          "support": 376
+        }
+      },
+      "confusion": {
+        "labels": [
+          "bug",
+          "feature",
+          "question",
+          "docs"
+        ],
+        "matrix": [
+          [
+            224,
+            23,
+            1157,
+            49
+          ],
+          [
+            15,
+            158,
+            250,
+            2
+          ],
+          [
+            4,
+            3,
+            62,
+            4
+          ],
+          [
+            7,
+            29,
+            166,
+            174
+          ]
+        ]
+      },
+      "flagging": {
+        "threshold": null,
+        "average_precision": 0.09085077854730053,
+        "filed": 2199,
+        "misfiled": 124,
+        "flags": 0,
+        "true_flags": 0,
+        "false_flags": 0,
+        "caught": 0.0,
+        "fixed": 0.0,
+        "flag_precision": null,
+        "false_alarm_rate": 0.0,
+        "combined": {
+          "accuracy": 0.9123334765792867,
+          "macro_f1": 0.7765367155844457,
+          "subsets": {
+            "with_form": {
+              "n": 2199,
+              "accuracy": 0.9436107321509777,
+              "macro_f1": 0.826449569036637,
+              "vs_form": {
+                "macro_f1": {
+                  "diff": 0.0,
+                  "ci": [
+                    0.0,
+                    0.0
+                  ],
+                  "p_a_better": 0.0
+                },
+                "accuracy": {
+                  "diff": 0.0,
+                  "ci": [
+                    0.0,
+                    0.0
+                  ],
+                  "p_a_better": 0.0
+                }
+              }
+            },
+            "no_form": {
+              "n": 128,
+              "accuracy": 0.375,
+              "macro_f1": 0.40563608218406977,
+              "vs_form": {
+                "macro_f1": {
+                  "diff": 0.2572844338324214,
+                  "ci": [
+                    0.1590109226647319,
+                    0.3336679864119883
+                  ],
+                  "p_a_better": 1.0
+                },
+                "accuracy": {
+                  "diff": -0.046875,
+                  "ci": [
+                    -0.171875,
+                    0.0703125
+                  ],
+                  "p_a_better": 0.216
+                }
+              }
+            }
+          },
+          "vs_form": {
+            "macro_f1": {
+              "diff": -0.009544177556270128,
+              "ci": [
+                -0.02995633071187746,
+                0.014493469360929783
+              ],
+              "p_a_better": 0.22
+            },
+            "accuracy": {
+              "diff": -0.0025784271594326835,
+              "ci": [
+                -0.009454232917920025,
+                0.0042973785990545466
+              ],
+              "p_a_better": 0.219
+            }
+          }
+        }
+      },
+      "macro_f1_ci": [
+        0.3319877732996174,
+        0.36982763972053295
+      ],
+      "accuracy_ci": [
+        0.247518263859046,
+        0.2831972496776966
+      ],
+      "vs_form": {
+        "macro_f1": {
+          "diff": -0.4345386111595859,
+          "ci": [
+            -0.47144203343259444,
+            -0.393450576363732
+          ],
+          "p_a_better": 0.0
+        },
+        "accuracy": {
+          "diff": -0.6493339063171465,
+          "ci": [
+            -0.6716802750322304,
+            -0.6269767941555651
+          ],
+          "p_a_better": 0.0
+        }
+      }
+    }
+  }
+}
