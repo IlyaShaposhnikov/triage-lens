@@ -148,3 +148,16 @@ def test_score_rejects_foreign_verdicts(tmp_path):
     (tmp_path / "v.json").write_text(json.dumps({"verdicts": {"x#1->2": "yes"}}))
     with pytest.raises(SystemExit, match="not in the sample"):
         rv.main(["score", str(tmp_path / "v.json"), "--sample", str(tmp_path / "s.json")])
+
+
+def test_weighted_interval_is_not_degenerate_when_the_big_rule_is_perfect():
+    # The largest rule has 10/10 correct: a plug-in interval would be [~1, 1].
+    rules = {
+        "comment": {"pairs": 831, "reviewed": 10, "yes": 10},
+        "weak_comment": {"pairs": 63, "reviewed": 11, "yes": 10},
+        "event": {"pairs": 0, "reviewed": 0, "yes": 0},
+    }
+    estimate, (low, high) = rv.weighted_precision(rules)
+    assert estimate == pytest.approx(831 / 894 + 63 / 894 * 10 / 11)
+    assert low < 0.9 and high <= 1.0
+    assert rv.weighted_precision({"event": {"pairs": 5, "reviewed": 0, "yes": 0}}) == (None, None)

@@ -31,6 +31,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from triage_lens.collect import load_latest
 from triage_lens.duplicates import load_threads
 
@@ -40,6 +42,7 @@ SEED = 0
 BODY_CHARS = 900
 COMMENT_CHARS = 500
 Z95 = 1.96
+POSTERIOR_DRAWS = 100_000
 
 
 def pair_id(repo: str, pair: dict[str, Any]) -> str:
@@ -129,6 +132,31 @@ def wilson(successes: int, n: int, z: float = Z95) -> tuple[float, float] | None
     return max(0.0, centre - half), min(1.0, centre + half)
 
 
+def weighted_precision(
+    rules: dict[str, dict[str, Any]], seed: int = SEED
+) -> tuple[float | None, list[float] | None]:
+    """Precision of all pairs: rule precisions weighted by rule size, with a 95% interval.
+
+    The interval comes from Jeffreys posteriors Beta(yes + 1/2, no + 1/2) per rule,
+    sampled and combined with the same weights. A plug-in normal interval would be
+    wrong here: a rule with 10/10 correct has zero sample variance, so the largest
+    rule would contribute no uncertainty at all. Rules without reviews are left out
+    and the remaining weights renormalised.
+    """
+    reviewed = {s: r for s, r in rules.items() if r["reviewed"]}
+    total = sum(r["pairs"] for r in reviewed.values())
+    if not total:
+        return None, None
+    rng = np.random.default_rng(seed)
+    estimate, draws = 0.0, np.zeros(POSTERIOR_DRAWS)
+    for r in reviewed.values():
+        weight = r["pairs"] / total
+        estimate += weight * r["yes"] / r["reviewed"]
+        draws += weight * rng.beta(r["yes"] + 0.5, r["reviewed"] - r["yes"] + 0.5, POSTERIOR_DRAWS)
+    low, high = np.percentile(draws, [2.5, 97.5])
+    return estimate, [float(low), float(high)]
+
+
 def precision_report(
     verdicts: dict[str, str], sources: dict[str, str], population: dict[str, Counter]
 ) -> dict[str, dict[str, Any]]:
@@ -144,34 +172,20 @@ def precision_report(
 
     report = {}
     for repo, by_source in counts.items():
-        total = sum(population[repo].values())
-        rules, estimate, variance = {}, 0.0, 0.0
+        rules = {}
         for source in SOURCES:
             c = by_source.get(source, Counter())
             n = c["yes"] + c["no"]
-            size = population[repo][source]
             rules[source] = {
-                "pairs": size,
+                "pairs": population[repo][source],
                 "reviewed": n,
                 "unsure": c["unsure"],
                 "yes": c["yes"],
                 "precision": c["yes"] / n if n else None,
                 "ci": wilson(c["yes"], n),
             }
-            if n and total:
-                weight, p = size / total, c["yes"] / n
-                estimate += weight * p
-                variance += weight * weight * p * (1 - p) / n
-        reviewed_weight = sum(population[repo][s] for s in SOURCES if rules[s]["reviewed"]) / max(
-            total, 1
-        )
-        overall = estimate / reviewed_weight if reviewed_weight else None
-        half = Z95 * math.sqrt(variance) / reviewed_weight if reviewed_weight else None
-        report[repo] = {
-            "rules": rules,
-            "estimated_precision": overall,
-            "ci": [max(0.0, overall - half), min(1.0, overall + half)] if overall else None,
-        }
+        estimate, ci = weighted_precision(rules)
+        report[repo] = {"rules": rules, "estimated_precision": estimate, "ci": ci}
     return report
 
 
