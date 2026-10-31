@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import logging
 import time
 from collections.abc import Callable, Sequence
@@ -37,7 +36,14 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 
 from triage_lens.dataset import CLASSES, REPOS, prose_text
-from triage_lens.evaluate import load_dataset, macro_f1, print_tables, save_result, score_model
+from triage_lens.evaluate import (
+    load_dataset,
+    load_results,
+    macro_f1,
+    print_tables,
+    save_result,
+    score_model,
+)
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 C_GRID = (0.25, 1.0, 4.0, 16.0)
@@ -156,16 +162,6 @@ def proba_in_class_order(model: LogisticRegression, x: np.ndarray) -> np.ndarray
 # --------------------------------------------------------------------------- CLI
 
 
-def load_other_results(results_dir: Path, repo: str, names: Sequence[str]) -> dict[str, Any]:
-    """Test scores of models trained earlier, to print them next to the new one."""
-    found = {}
-    for name in names:
-        path = results_dir / repo.replace("/", "__") / f"{name}.json"
-        if path.exists():
-            found[name] = json.loads(path.read_text(encoding="utf-8"))["scores"]["test"]
-    return found
-
-
 def run(
     repo: str,
     model_name: str,
@@ -202,10 +198,7 @@ def run(
     scores = score_model(name, lambda part: proba_in_class_order(classifier, matrix(part)), splits)
     save_result(results_dir, repo, name, scores, params)
 
-    others = ["trust_form", "tfidf_logreg"] + ([f"emb_{slug}"] if suffix else [])
-    table = load_other_results(results_dir, repo, others)
-    table[name] = scores["test"]
-    print_tables(repo, table)
+    print_tables(repo, load_results(results_dir, repo))
     print(
         f"\n{name}: C={params['C']} (validation macro-F1 by C: "
         f"{params['validation_macro_f1_by_C']})"

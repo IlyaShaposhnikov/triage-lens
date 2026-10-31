@@ -96,6 +96,20 @@ def zeroshot_probs(results: Sequence[dict[str, Any]]) -> np.ndarray:
     return probs
 
 
+def strip_special_tokens(text: str, special_tokens: Sequence[str]) -> str:
+    """Remove literal special-token strings from user text.
+
+    Issues contain HTML such as ``<s>struck out</s>``; for BART ``<s>`` and ``</s>``
+    are the sequence start and end tokens, so the tokenizer turns them into real
+    control tokens and the NLI model refuses the batch. Longest tokens go first so
+    that ``</s>`` is not half-removed by ``<s>``.
+    """
+    for token in sorted(set(special_tokens), key=len, reverse=True):
+        if token:
+            text = text.replace(token, " ")
+    return text
+
+
 def model_name_for(kind: str, model: str, input_kind: str) -> str:
     suffix = "" if input_kind == "full" else f"_{input_kind}"
     return f"{kind}_{model_slug(model)}{suffix}"
@@ -290,7 +304,10 @@ def zeroshot(
     probs = {}
     started = time.perf_counter()
     for split in ("validation", "test"):
-        texts = [to_text(r)[:ZS_MAX_CHARS] for r in splits[split]]
+        texts = [
+            strip_special_tokens(to_text(r), classifier.tokenizer.all_special_tokens)[:ZS_MAX_CHARS]
+            for r in splits[split]
+        ]
         results = classifier(
             texts,
             candidate_labels=list(ZS_LABELS.values()),
@@ -342,19 +359,27 @@ def main(argv: list[str] | None = None) -> None:
         if args.command == "finetune":
             finetune(
                 repo,
-                args.data,
-                args.out,
-                args.model,
-                args.input,
-                args.max_length,
-                args.epochs,
-                args.lr,
-                args.batch_size,
+                data_dir=args.data,
+                out_dir=args.out,
+                model_name=args.model,
+                input_kind=args.input,
+                max_length=args.max_length,
+                epochs=args.epochs,
+                learning_rate=args.lr,
+                batch_size=args.batch_size,
                 limit=args.limit,
                 work_dir=args.work_dir,
             )
         else:
-            zeroshot(repo, args.data, args.out, args.model, args.input, args.batch_size, args.limit)
+            zeroshot(
+                repo,
+                data_dir=args.data,
+                out_dir=args.out,
+                model_name=args.model,
+                input_kind=args.input,
+                batch_size=args.batch_size,
+                limit=args.limit,
+            )
     log.info("done: %s", json.dumps([str(p) for p in sorted(args.out.rglob("*.npz"))]))
 
 

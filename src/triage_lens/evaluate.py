@@ -394,6 +394,20 @@ def save_result(
     return path
 
 
+def load_results(
+    results_dir: Path, repo: str, split: str = "test", exclude: Sequence[str] = ("majority",)
+) -> dict[str, dict[str, Any]]:
+    """Saved scores of every model of a repository, baselines first, then by name."""
+    folder = results_dir / repo.replace("/", "__")
+    found = {
+        path.stem: json.loads(path.read_text(encoding="utf-8"))["scores"][split]
+        for path in sorted(folder.glob("*.json"))
+        if path.stem not in exclude
+    }
+    baselines = [name for name in ("trust_form", "tfidf_logreg") if name in found]
+    return {name: found[name] for name in baselines + sorted(set(found) - set(baselines))}
+
+
 # --------------------------------------------------------------------------- printing
 
 

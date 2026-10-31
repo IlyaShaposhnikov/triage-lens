@@ -58,7 +58,8 @@ def test_score_file_scores_like_any_model(dataset, tmp_path):
     path, records = dataset
     payload, meta = perfect_predictions(records, pr.file_hash(path))
     npz = pr.save_predictions(tmp_path / "p" / "m.npz", payload, meta)
-    scores = pr.score_file(npz, path)
+    scores, meta = pr.score_file(npz, path)
+    assert meta["kind"] == "test"
     assert scores["test"]["accuracy"] == 1.0
     assert scores["test"]["flagging"]["misfiled"] == 3  # test forms are all "bug"
 
@@ -142,4 +143,45 @@ def test_cli_parses_without_torch(monkeypatch):
     monkeypatch.setattr(tr, "finetune", lambda *args, **kwargs: calls.append((args, kwargs)))
     tr.main(["finetune", "astral-sh/uv", "--limit", "40", "--epochs", "1"])
     ((args, kwargs),) = calls
-    assert args[0] == "astral-sh/uv" and args[6] == 1 and kwargs["limit"] == 40
+    assert args == ("astral-sh/uv",)
+    assert kwargs["epochs"] == 1 and kwargs["limit"] == 40 and kwargs["learning_rate"] == 3e-5
+
+
+def test_strip_special_tokens_removes_html_strikethrough_for_bart():
+    text = "Use <s>read_table</s> read_csv; see <mask>"
+    cleaned = tr.strip_special_tokens(text, ["<s>", "</s>", "<pad>", "<mask>"])
+    assert "<s>" not in cleaned and "</s>" not in cleaned and "<mask>" not in cleaned
+    assert "read_table" in cleaned and "read_csv" in cleaned
+
+
+def test_save_predictions_leaves_no_temporary_file(tmp_path):
+    pr.save_predictions(tmp_path / "m.npz", {"test": ([1], np.full((1, 4), 0.25))}, {})
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["m.npz"]
+
+
+def test_table_includes_every_saved_model(dataset, tmp_path, capsys):
+    path, records = dataset
+    results = tmp_path / "results" / "astral-sh__uv"
+    results.mkdir(parents=True)
+    payload, meta = perfect_predictions(records, pr.file_hash(path))
+    npz = pr.save_predictions(tmp_path / "pred" / "astral-sh__uv" / "ft_x.npz", payload, meta)
+    scores, _ = pr.score_file(npz, path)
+    for name in ("emb_y", "majority", "trust_form"):
+        (results / f"{name}.json").write_text(json.dumps({"scores": scores}))
+    pr.main(
+        [
+            "astral-sh/uv",
+            "--data",
+            str(path.parent),
+            "--predictions",
+            str(tmp_path / "pred"),
+            "--results",
+            str(tmp_path / "results"),
+        ]
+    )
+    rows = [
+        line.split()[0]
+        for line in capsys.readouterr().out.splitlines()
+        if line[:3] in ("tru", "emb", "ft_", "maj")
+    ]
+    assert rows[:3] == ["trust_form", "emb_y", "ft_x"]  # baselines first, majority left out

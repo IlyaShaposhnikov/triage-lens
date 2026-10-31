@@ -58,41 +58,38 @@ def proba_in_class_order(model: Pipeline, records) -> np.ndarray:
     return probs[:, order]
 
 
-def make_tfidf_logreg(c: float) -> Pipeline:
-    return Pipeline(
-        [
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    min_df=2,
-                    max_df=0.9,
-                    max_features=200_000,
-                    sublinear_tf=True,
-                ),
-            ),
-            (
-                "clf",
-                LogisticRegression(C=c, class_weight="balanced", max_iter=2000, random_state=SEED),
-            ),
-        ]
+def make_vectorizer() -> TfidfVectorizer:
+    return TfidfVectorizer(
+        ngram_range=(1, 2), min_df=2, max_df=0.9, max_features=200_000, sublinear_tf=True
     )
 
 
+def make_logreg(c: float) -> LogisticRegression:
+    return LogisticRegression(C=c, class_weight="balanced", max_iter=2000, random_state=SEED)
+
+
 def fit_tfidf_logreg(train, validation) -> tuple[Pipeline, dict[str, Any]]:
-    """Pick C on validation by macro-F1, return the model trained with it."""
-    x_train, y_train = [r["text"] for r in train], [r["label"] for r in train]
-    x_val, y_val = [r["text"] for r in validation], [r["label"] for r in validation]
-    best = None
-    search = {}
+    """Pick C on validation by macro-F1, return the model trained with it.
+
+    The vectorizer depends only on the training texts, so it is fitted once and
+    shared by every C.
+    """
+    vectorizer = make_vectorizer()
+    x_train = vectorizer.fit_transform([r["text"] for r in train])
+    x_val = vectorizer.transform([r["text"] for r in validation])
+    y_train, y_val = [r["label"] for r in train], [r["label"] for r in validation]
+    best, search = None, {}
     for c in C_GRID:
-        model = make_tfidf_logreg(c).fit(x_train, y_train)
-        score = macro_f1(y_val, model.predict(x_val))
+        clf = make_logreg(c).fit(x_train, y_train)
+        score = macro_f1(y_val, clf.predict(x_val))
         search[str(c)] = round(score, 4)
         if best is None or score > best[0]:
-            best = (score, c, model)
-    _, c, model = best
-    return model, {"C": c, "validation_macro_f1_by_C": search}
+            best = (score, c, clf)
+    _, c, clf = best
+    return Pipeline([("tfidf", vectorizer), ("clf", clf)]), {
+        "C": c,
+        "validation_macro_f1_by_C": search,
+    }
 
 
 def run(repo: str, data_dir: Path, results_dir: Path) -> dict[str, dict[str, Any]]:

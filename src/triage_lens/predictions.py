@@ -26,7 +26,13 @@ from typing import Any
 import numpy as np
 
 from triage_lens.dataset import CLASSES, REPOS
-from triage_lens.evaluate import load_dataset, print_tables, save_result, score_model
+from triage_lens.evaluate import (
+    load_dataset,
+    load_results,
+    print_tables,
+    save_result,
+    score_model,
+)
 
 SCORED_SPLITS = ("validation", "test")
 
@@ -58,20 +64,26 @@ def save_predictions(
         arrays[f"{split}_probs"] = probs
     meta = {**meta, "classes": list(CLASSES)}
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(path, meta=np.array(json.dumps(meta)), **arrays)
+    # Write to a temporary file first: an interrupted run never leaves a broken npz.
+    tmp = path.with_name(path.stem + ".tmp.npz")
+    np.savez_compressed(tmp, meta=np.array(json.dumps(meta)), **arrays)
+    tmp.replace(path)
     return path
 
 
 def load_predictions(path: Path) -> tuple[dict[str, dict[int, np.ndarray]], dict[str, Any]]:
-    data = np.load(path)
-    meta = json.loads(str(data["meta"]))
+    with np.load(path) as data:  # closes the file: Windows keeps open files locked
+        meta = json.loads(str(data["meta"]))
+        by_split = {
+            split: {
+                int(n): p
+                for n, p in zip(data[f"{split}_numbers"], data[f"{split}_probs"], strict=True)
+            }
+            for split in SCORED_SPLITS
+            if f"{split}_numbers" in data
+        }
     if meta.get("classes") != list(CLASSES):
         raise PredictionMismatch(f"{path.name}: class order {meta.get('classes')} != {CLASSES}")
-    by_split = {}
-    for split in SCORED_SPLITS:
-        if f"{split}_numbers" in data:
-            numbers, probs = data[f"{split}_numbers"], data[f"{split}_probs"]
-            by_split[split] = {int(n): p for n, p in zip(numbers, probs, strict=True)}
     return by_split, meta
 
 
@@ -83,7 +95,8 @@ def aligned(probs: dict[int, np.ndarray], records: Sequence[dict[str, Any]]) -> 
     return np.stack([probs[r["number"]] for r in records])
 
 
-def score_file(path: Path, dataset_path: Path) -> dict[str, dict[str, Any]]:
+def score_file(path: Path, dataset_path: Path) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    """Scores of one predictions file and its metadata."""
     by_split, meta = load_predictions(path)
     expected = file_hash(dataset_path)
     if meta.get("dataset_sha1") != expected:
@@ -98,7 +111,7 @@ def score_file(path: Path, dataset_path: Path) -> dict[str, dict[str, Any]]:
             return np.zeros((0, len(CLASSES)))
         return aligned(by_split.get(records[0]["split"], {}), records)
 
-    return score_model(path.stem, predict_proba, splits)
+    return score_model(path.stem, predict_proba, splits), meta
 
 
 def run(
@@ -110,16 +123,10 @@ def run(
     if not files:
         raise SystemExit(f"No predictions for {repo} in {predictions_dir / stem}")
 
-    table = {}
-    for name in ("trust_form", "tfidf_logreg"):
-        path = results_dir / stem / f"{name}.json"
-        if path.exists():
-            table[name] = json.loads(path.read_text(encoding="utf-8"))["scores"]["test"]
     for path in files:
-        scores = score_file(path, dataset_path)
-        _, meta = load_predictions(path)
+        scores, meta = score_file(path, dataset_path)
         save_result(results_dir, repo, path.stem, scores, meta)
-        table[path.stem] = scores["test"]
+    table = load_results(results_dir, repo)
     print_tables(repo, table)
     return table
 
