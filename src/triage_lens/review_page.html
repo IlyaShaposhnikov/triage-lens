@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duplicate pair review</title>
+<style>
+:root { --bg:#fafaf9; --card:#fff; --text:#1c1917; --muted:#78716c; --line:#e7e5e4;
+        --yes:#15803d; --no:#b91c1c; --unsure:#a16207; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#1c1917; --card:#292524; --text:#f5f5f4; --muted:#a8a29e; --line:#44403c; }
+}
+body { margin:0; background:var(--bg); color:var(--text);
+       font:15px/1.5 system-ui, sans-serif; }
+header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line);
+         padding:12px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; z-index:1; }
+main { max-width:1200px; margin:0 auto; padding:16px; }
+.pair { background:var(--card); border:1px solid var(--line); border-radius:8px;
+        padding:16px; margin-bottom:16px; }
+.pair.done { opacity:.6; }
+.meta { color:var(--muted); font-size:13px; margin-bottom:8px; }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+h3 { margin:0 0 4px; font-size:15px; }
+pre { white-space:pre-wrap; word-break:break-word; background:var(--bg); padding:8px;
+      border-radius:6px; max-height:260px; overflow:auto; font-size:13px; margin:6px 0; }
+.evidence pre { max-height:160px; }
+.buttons { display:flex; gap:8px; margin-top:12px; }
+button { font:inherit; padding:6px 16px; border-radius:6px; border:1px solid var(--line);
+         background:var(--card); color:var(--text); cursor:pointer; }
+button.on[data-v=yes] { background:var(--yes); color:#fff; border-color:var(--yes); }
+button.on[data-v=no] { background:var(--no); color:#fff; border-color:var(--no); }
+button.on[data-v=unsure] { background:var(--unsure); color:#fff; border-color:var(--unsure); }
+a { color:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <strong>Duplicate pair review</strong>
+  <span id="progress"></span>
+  <label><input type="checkbox" id="hide"> hide reviewed</label>
+  <button id="export">Download verdicts</button>
+</header>
+<main>
+<p class="meta">Question for every pair: <b>is the left issue a duplicate of the right one</b>
+(the same problem or request)? "unsure" pairs are left out of the precision.
+Keys: Y / N / U mark the first unreviewed pair.</p>
+<div id="pairs"></div>
+</main>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const items = JSON.parse(document.getElementById("data").textContent);
+const KEY = "triage-lens-duplicate-review";
+let verdicts = {};
+try { verdicts = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(verdicts)); } catch (e) {} };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function issue(side, x) {
+  return `<div><div class="meta">${side} · ${esc(x.state)} · ${esc(x.labels.join(", ") || "no labels")}</div>
+    <h3><a href="${esc(x.url)}" target="_blank" rel="noopener">#${x.number}</a> ${esc(x.title)}</h3>
+    <pre>${esc(x.body || "(empty)")}</pre></div>`;
+}
+
+function render() {
+  const hide = document.getElementById("hide").checked;
+  document.getElementById("pairs").innerHTML = items.map((it, i) => {
+    const v = verdicts[it.id];
+    if (hide && v) return "";
+    const ev = it.evidence.length
+      ? it.evidence.map(c => `<pre>@${esc(c.author || "?")}: ${esc(c.body)}</pre>`).join("")
+      : "<p class='meta'>(no comment names the original; the link came from an event)</p>";
+    return `<section class="pair ${v ? "done" : ""}" data-i="${i}">
+      <div class="meta">${i + 1}/${items.length} · ${esc(it.repo)} · rule: <b>${esc(it.source)}</b></div>
+      <div class="cols">${issue("duplicate", it.duplicate)}${issue("original", it.original)}</div>
+      <div class="evidence"><div class="meta">comments naming #${it.original.number}</div>${ev}</div>
+      <div class="buttons">${["yes", "no", "unsure"].map(x =>
+        `<button data-v="${x}" class="${v === x ? "on" : ""}">${x}</button>`).join("")}</div>
+    </section>`;
+  }).join("");
+  const done = items.filter(it => verdicts[it.id]).length;
+  document.getElementById("progress").textContent = `${done} / ${items.length} reviewed`;
+}
+
+document.getElementById("pairs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  const it = items[+b.closest(".pair").dataset.i];
+  verdicts[it.id] = verdicts[it.id] === b.dataset.v ? undefined : b.dataset.v;
+  if (!verdicts[it.id]) delete verdicts[it.id];
+  save(); render();
+});
+document.addEventListener("keydown", e => {
+  const v = {y: "yes", n: "no", u: "unsure"}[e.key.toLowerCase()];
+  const it = items.find(x => !verdicts[x.id]);
+  if (!v || !it || e.target.tagName === "INPUT") return;
+  verdicts[it.id] = v; save(); render();
+});
+document.getElementById("hide").addEventListener("change", render);
+document.getElementById("export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify({version: 1, verdicts}, null, 2)], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "duplicate_verdicts.json";
+  a.click();
+});
+render();
+</script>
+</body>
+</html>

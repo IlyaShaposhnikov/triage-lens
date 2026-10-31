@@ -1,0 +1,53 @@
+{
+  "rules": {
+    "event": {
+      "pairs": 27,
+      "reviewed": 12,
+      "unsure": 0,
+      "yes": 12,
+      "precision": 1.0,
+      "ci": [
+        0.7574992425007574,
+        1.0
+      ]
+    },
+    "comment": {
+      "pairs": 248,
+      "reviewed": 11,
+      "unsure": 1,
+      "yes": 10,
+      "precision": 0.9090909090909091,
+      "ci": [
+        0.6226353745137962,
+        0.9837682477371741
+      ]
+    },
+    "weak_comment": {
+      "pairs": 83,
+      "reviewed": 11,
+      "unsure": 1,
+      "yes": 10,
+      "precision": 0.9090909090909091,
+      "ci": [
+        0.6226353745137962,
+        0.9837682477371741
+      ]
+    },
+    "single_ref": {
+      "pairs": 72,
+      "reviewed": 11,
+      "unsure": 1,
+      "yes": 11,
+      "precision": 1.0,
+      "ci": [
+        0.7411599827511859,
+        1.0
+      ]
+    }
+  },
+  "estimated_precision": 0.9300211416490487,
+  "ci": [
+    0.8266963792926799,
+    1.0
+  ]
+}

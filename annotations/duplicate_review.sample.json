@@ -1,0 +1,404 @@
+{
+  "seed": 0,
+  "per_source": 12,
+  "population": {
+    "astral-sh/uv": {
+      "comment": 248,
+      "single_ref": 72,
+      "weak_comment": 83,
+      "event": 27
+    },
+    "pandas-dev/pandas": {
+      "comment": 831,
+      "single_ref": 90,
+      "weak_comment": 63,
+      "event": 31
+    }
+  },
+  "items": [
+    {
+      "id": "astral-sh/uv#13928->13812",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#18577->17371",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#14021->4711",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#6430->6298",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#13023->13812",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#15614->8607",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#14959->13878",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#22543->19023",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#13318->13432",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#17484->16916",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#13924->7219",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#9930->1703",
+      "source": "event"
+    },
+    {
+      "id": "astral-sh/uv#10247->6783",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#2159->1377",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#6501->1495",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#13836->11134",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#1837->1360",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#12016->8450",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#14754->10380",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#4855->4800",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#18128->1910",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#10386->9845",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#12798->7865",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#15042->5903",
+      "source": "comment"
+    },
+    {
+      "id": "astral-sh/uv#18892->8253",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#8046->8015",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#10664->10440",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#6006->3163",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#3334->3516",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#11351->9452",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#14385->10773",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#15751->15836",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#19015->12906",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#11835->1910",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#13414->13410",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#11307->6890",
+      "source": "weak_comment"
+    },
+    {
+      "id": "astral-sh/uv#11027->6794",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#21009->19832",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#15607->2103",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#14534->13995",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#17113->6794",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#11978->5903",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#6544->171",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#1945->313",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#8019->7193",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#13416->5190",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#14370->7805",
+      "source": "single_ref"
+    },
+    {
+      "id": "astral-sh/uv#10965->1419",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#48777->48644",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#28280->27748",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#45317->40080",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#29917->16724",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#9945->12653",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#21095->13032",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#35616->15675",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#35137->12653",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#65518->63879",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#22495->21629",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#43310->32593",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#25834->13016",
+      "source": "event"
+    },
+    {
+      "id": "pandas-dev/pandas#34957->34671",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#14082->13717",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#26805->22848",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#12088->12023",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#15526->6942",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#12174->10536",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#55880->53640",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#10169->9817",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#36768->12398",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#65838->63899",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#14726->14621",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#28468->27794",
+      "source": "comment"
+    },
+    {
+      "id": "pandas-dev/pandas#61906->54321",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#28490->26551",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#35089->34873",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#21100->12236",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#41362->36227",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#10737->3324",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#14224->9422",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#9287->9133",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#29488->28599",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#6663->3942",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#27045->15273",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#15315->9422",
+      "source": "weak_comment"
+    },
+    {
+      "id": "pandas-dev/pandas#24085->5261",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#35589->19602",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#8751->3268",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#17560->13049",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#21810->21809",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#16833->16363",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#40938->37996",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#45553->42916",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#14158->13352",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#35576->29752",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#24824->24589",
+      "source": "single_ref"
+    },
+    {
+      "id": "pandas-dev/pandas#21999->21809",
+      "source": "single_ref"
+    }
+  ]
+}

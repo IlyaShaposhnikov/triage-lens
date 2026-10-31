@@ -20,6 +20,9 @@ transformer = ["torch>=2.2", "transformers>=4.46", "accelerate>=0.26"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+triage_lens = ["*.html"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
