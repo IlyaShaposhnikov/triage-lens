@@ -330,7 +330,7 @@ def run(
     report = bootstrap(ranks, reference="bm25")
     print_table(repo, len(corpus.numbers), report, dropped)
 
-    path = results_dir / stem / "search.json"
+    path = results_dir / stem / f"search_{slug}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "repo": repo,

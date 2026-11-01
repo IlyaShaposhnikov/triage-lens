@@ -157,7 +157,9 @@ def test_main_with_numpy_backend(tmp_path, capsys):
     ]
     se.main(args, encoder_factory=lambda name, batch: FakeEncoder(corpus))
 
-    saved = json.loads((tmp_path / "res" / "astral-sh__uv" / "search.json").read_text())
+    saved = json.loads(
+        (tmp_path / "res" / "astral-sh__uv" / "search_all-minilm-l6-v2.json").read_text()
+    )
     assert saved["methods"]["hybrid"]["recall@1"] == 1.0
     assert saved["ranks"]["pairs"] == [[4, 1], [5, 2]]
     assert "dense_chroma" not in saved["methods"]
@@ -221,6 +223,8 @@ def test_main_with_chroma_backend(tmp_path, monkeypatch):
     ]
     se.main(args, encoder_factory=lambda name, batch: FakeEncoder(corpus))
 
-    saved = json.loads((tmp_path / "res" / "astral-sh__uv" / "search.json").read_text())
+    saved = json.loads(
+        (tmp_path / "res" / "astral-sh__uv" / "search_all-minilm-l6-v2.json").read_text()
+    )
     assert saved["methods"]["dense_chroma"]["recall@1"] == 1.0
     assert FakeClient.collections["astral-sh__uv__all-minilm-l6-v2"].count() == 6
