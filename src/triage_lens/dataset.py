@@ -224,6 +224,13 @@ def assign_splits(records: list[dict[str, Any]]) -> None:
             record["split"] = name
 
 
+def cleaned(repo: str, issue: dict[str, Any]) -> tuple[str, str, str]:
+    """(title, body, text) of an issue with form traces removed; text = title + body."""
+    title = clean_title(issue["title"])
+    body = clean_body(issue["body"], REPOS[repo].metadata_sections)
+    return title, body, f"{title}\n\n{body}".strip()
+
+
 def build(repo: str, issues: dict[int, dict[str, Any]]) -> tuple[list[dict[str, Any]], Counter]:
     config = REPOS[repo]
     records, dropped = [], Counter()
@@ -235,15 +242,14 @@ def build(repo: str, issues: dict[int, dict[str, Any]]) -> tuple[list[dict[str, 
         if label is None:
             dropped["no single reviewed class"] += 1
             continue
-        title = clean_title(issue["title"])
-        body = clean_body(issue["body"], config.metadata_sections)
+        title, body, text = cleaned(repo, issue)
         records.append(
             {
                 "repo": repo,
                 "number": issue["number"],
                 "title": title,
                 "body": body,
-                "text": f"{title}\n\n{body}".strip(),
+                "text": text,
                 "label": label,
                 "form": detect_form(repo, issue),
                 "created_at": issue["created_at"],
