@@ -1,0 +1,11 @@
+# Dependencies of the demo app (Streamlit Community Cloud reads this file).
+# CPU-only torch: the default Linux wheel pulls in gigabytes of CUDA libraries.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+streamlit>=1.40
+sentence-transformers>=3
+huggingface_hub>=0.25
+# Must match the version recorded in the published manifest.json (pickled classifier).
+scikit-learn==1.9.1
+# The triage_lens package itself, for text cleaning and the app logic.
+.
