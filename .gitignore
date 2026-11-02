@@ -224,3 +224,6 @@ data/
 
 # Generated review page (rebuild with: python -m triage_lens.review sample ...)
 annotations/duplicate_review.html
+
+# Demo artifacts (published to Hugging Face)
+build/
