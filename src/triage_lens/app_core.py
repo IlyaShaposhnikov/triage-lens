@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -42,6 +43,25 @@ class RepoAssets:
     vectors: np.ndarray  # float32, L2-normalised, same order as issues
     classifier: Any
     info: dict[str, Any]
+
+
+MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+HTML_TAG = re.compile(r"<[^>]+>")
+MD_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-.!|>~$])")
+
+
+def plain_snippet(snippet: str) -> str:
+    """A snippet safe to show as Markdown: no images, HTML or formatting.
+
+    Snippets are raw issue Markdown; rendered as is, an embedded screenshot
+    would appear in the result list.
+    """
+    text = MD_IMAGE.sub(" ", snippet)
+    text = MD_LINK.sub(r"\1", text)
+    text = HTML_TAG.sub(" ", text)
+    text = " ".join(text.split())
+    return MD_SPECIAL.sub(r"\\\1", text)
 
 
 def query_text(repo: str, title: str, body: str) -> str:

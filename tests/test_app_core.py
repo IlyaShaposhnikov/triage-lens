@@ -136,3 +136,9 @@ def test_from_hub_downloads_snapshot(tmp_path, monkeypatch):
     assets = ac.DemoAssets.from_hub("me/demo")
     assert calls == [("me/demo", "dataset", None)]
     assert assets.encoder_name == "fake/encoder"
+
+
+def test_plain_snippet_drops_images_html_and_markup():
+    snippet = "Fails ![shot](https://x/y.png) see [docs](http://d) <img src=a> `uv` *b*"
+    assert ac.plain_snippet(snippet) == "Fails see docs \\`uv\\` \\*b\\*"
+    assert ac.plain_snippet("") == ""

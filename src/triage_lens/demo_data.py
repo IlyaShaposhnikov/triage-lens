@@ -45,6 +45,9 @@ from triage_lens.evaluate import load_dataset
 from triage_lens.predictions import file_hash
 from triage_lens.search import Corpus
 
+# Not embeddings.DEFAULT_MODEL (MiniLM): that default serves the classification
+# experiments, while for duplicate search bge-small won by 7-8 pp recall@10
+# (results/*/search_*.json), so the demo uses it.
 DEMO_ENCODER = "BAAI/bge-small-en-v1.5"
 SNIPPET_CHARS = 280
 MAX_LABELS = 8
@@ -151,15 +154,15 @@ def build_repo(
 
 DATASET_CARD = """---
 license: other
-pretty_name: triage-lens demo artifacts
+pretty_name: TriageLens demo artifacts
 task_categories: [text-classification, sentence-similarity]
 language: [en]
 ---
 
-# triage-lens demo artifacts
+# TriageLens demo artifacts
 
 Search vectors, issue metadata and a small classifier used by the
-[triage-lens](https://github.com/IlyaShaposhnikov/triage-lens) demo, which
+[TriageLens](https://github.com/IlyaShaposhnikov/triage-lens) demo, which
 predicts the type of a new GitHub issue and finds earlier issues that may be
 duplicates of it.
 

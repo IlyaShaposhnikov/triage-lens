@@ -1,4 +1,4 @@
-"""triage-lens demo: predict the type of a GitHub issue and find possible duplicates.
+"""TriageLens demo: predict the type of a GitHub issue and find possible duplicates.
 
 Run locally:
     pip install -r requirements.txt
@@ -11,7 +11,7 @@ import os
 
 import streamlit as st
 
-from triage_lens.app_core import DemoAssets, load_encoder
+from triage_lens.app_core import DemoAssets, load_encoder, plain_snippet
 
 HF_DATASET = os.environ.get("TRIAGE_LENS_DATASET", "IlyaShaposhnikov/triage-lens-demo")
 GITHUB = "https://github.com/IlyaShaposhnikov/triage-lens"
@@ -33,7 +33,7 @@ EXAMPLES = {
     },
 }
 
-st.set_page_config(page_title="triage-lens", page_icon="🔎", layout="wide")
+st.set_page_config(page_title="TriageLens", page_icon="🔎", layout="wide")
 
 
 @st.cache_resource(show_spinner="Downloading the index from Hugging Face…")
@@ -46,11 +46,18 @@ def get_encoder(name: str):
     return load_encoder(name)
 
 
-assets = get_assets()
-encode = get_encoder(assets.encoder_name)
+try:
+    assets = get_assets()
+    encode = get_encoder(assets.encoder_name)
+except Exception as exc:  # network, missing dataset, incompatible files
+    st.error(
+        f"Could not load the demo data from Hugging Face (`{HF_DATASET}`): {exc}. "
+        "Reload the page in a minute; if it persists, the dataset may be unavailable."
+    )
+    st.stop()
 
 with st.sidebar:
-    st.header("triage-lens")
+    st.header("TriageLens")
     repo = st.selectbox("Repository", list(assets.repos))
     k = st.slider("Similar issues to show", 3, 15, 5)
     info = assets.repos[repo].info
@@ -70,7 +77,7 @@ with st.sidebar:
         )
     st.markdown(f"[How it was built and evaluated]({GITHUB})")
 
-st.title("🔎 triage-lens")
+st.title("🔎 TriageLens")
 st.write(
     "Paste a new GitHub issue. The app predicts what kind of issue it is and lists earlier "
     "issues that may describe the same problem."
@@ -80,20 +87,26 @@ if st.button("Fill in an example"):
     st.session_state.title = EXAMPLES[repo]["title"]
     st.session_state.body = EXAMPLES[repo]["body"]
 
-title = st.text_input("Title", key="title")
-body = st.text_area("Description", key="body", height=180)
+title = st.text_input("Title", key="title", placeholder="What went wrong or what do you need?")
+body = st.text_area(
+    "Description",
+    key="body",
+    height=180,
+    placeholder="Steps, error messages, what you expected…",
+)
 
 if st.button("Triage", type="primary", disabled=not (title or body).strip()):
-    probs = assets.classify(repo, title, body)
-    results = assets.similar(repo, title, body, encode, k=k)
+    with st.spinner("Looking through earlier issues…"):
+        probs = assets.classify(repo, title, body)
+        results = assets.similar(repo, title, body, encode, k=k)
 
     left, right = st.columns([1, 2], gap="large")
     with left:
         st.subheader("Issue type")
         best = max(probs, key=probs.get)
-        st.metric("Most likely", CLASS_NAMES[best], f"{probs[best]:.0%}", delta_color="off")
+        st.markdown(f"Most likely: **{CLASS_NAMES.get(best, best)}** ({probs[best]:.0%})")
         for cls, p in sorted(probs.items(), key=lambda item: -item[1]):
-            st.progress(p, text=f"{CLASS_NAMES[cls]} · {p:.0%}")
+            st.progress(p, text=f"{CLASS_NAMES.get(cls, cls)} · {p:.0%}")
         st.caption(
             "TF-IDF + logistic regression. On recent issues it agrees with the maintainers' "
             "label about 70–80% of the time; treat it as a hint, not a verdict."
@@ -105,10 +118,12 @@ if st.button("Triage", type="primary", disabled=not (title or body).strip()):
             if issue.get("state_reason") == "duplicate":
                 state += " · duplicate"
             labels = ", ".join(issue["labels"][:4])
+            title_md = issue["title"].replace("[", "\\[").replace("]", "\\]")
             st.markdown(
-                f"**[#{issue['number']} {issue['title']}]({issue['url']})**  \n"
+                f"**[#{issue['number']} {title_md}]({issue['url']})**  \n"
                 f"similarity {issue['similarity']:.2f} · {state} · {issue['created_at'][:10]}"
                 + (f" · {labels}" if labels else "")
             )
-            if issue["snippet"]:
-                st.caption(issue["snippet"])
+            snippet = plain_snippet(issue["snippet"])
+            if snippet:
+                st.caption(snippet)
