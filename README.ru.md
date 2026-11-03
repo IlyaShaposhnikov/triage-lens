@@ -179,6 +179,16 @@ duplicate» есть у немногих issues, а его поля `canonical` 
 
 Python 3.11+. Данные и кеши пишутся в `data/` (не отслеживается в git).
 
+`requirements.lock` фиксирует точные версии, на которых получены опубликованные результаты, для Python 3.12+ (все
+группы зависимостей, кроме шага на GPU в Kaggle: там использовались его собственные torch 2.11 и
+transformers 5.16):
+
+```bash
+pip install -r requirements.lock && pip install -e . --no-deps
+```
+
+Или пусть pip подберёт актуальные версии:
+
 ```bash
 pip install -e ".[dev,embeddings,search]"
 export GITHUB_TOKEN=...                      # fine-grained токен только на чтение

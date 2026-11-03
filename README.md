@@ -177,6 +177,15 @@ A few problems found along the way, kept here because they changed the results:
 
 Python 3.11+. Data and caches go to `data/` (not tracked).
 
+`requirements.lock` pins the exact versions behind the published results, for Python 3.12+
+(all extras except the Kaggle GPU step, which used Kaggle's own torch 2.11 and transformers 5.16):
+
+```bash
+pip install -r requirements.lock && pip install -e . --no-deps
+```
+
+Or let pip resolve current versions:
+
 ```bash
 pip install -e ".[dev,embeddings,search]"
 export GITHUB_TOKEN=...                      # read-only fine-grained token
