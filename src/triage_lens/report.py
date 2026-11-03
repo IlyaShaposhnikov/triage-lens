@@ -1,9 +1,9 @@
 """Markdown summary of every saved result, for the README.
 
-Reads ``results/<owner__name>/*.json`` and prints three tables per run:
-issue type classification, duplicate search, and the paired comparison of the
-two embedding models used for search (both rank the same queries, so the
-bootstrap resamples queries jointly).
+Reads every ``results/<owner__name>/`` folder and writes, per repository, the
+issue type classification table, the duplicate search table, and paired
+comparisons of every two embedding models used for search (they rank the same
+queries, so the bootstrap resamples queries jointly).
 
 Usage:
     python -m triage_lens.report --out results/summary.md
@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from itertools import combinations
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,6 @@ import numpy as np
 
 from triage_lens.evaluate import BOOTSTRAP_SAMPLES
 
-REPOS = ("astral-sh/uv", "pandas-dev/pandas")
 CLASSIFIERS = {
     "trust_form": "Trust the issue form (baseline)",
     "tfidf_logreg": "TF-IDF + logistic regression",
@@ -138,24 +138,23 @@ HEADER = [
 
 def report(results_dir: Path) -> str:
     lines: list[str] = list(HEADER)
-    for repo in REPOS:
-        folder = results_dir / repo.replace("/", "__")
-        if not folder.exists():
+    for folder in sorted(p for p in results_dir.iterdir() if p.is_dir()):
+        if not any(folder.glob("*.json")):
             continue
+        repo = folder.name.replace("__", "/")
         lines += [f"## {repo}", "", "### Issue type (test split)", ""]
         lines += classification_table(folder)
         files = search_files(folder)
         if files:
             lines += ["", "### Duplicate search", ""]
             lines += search_table(files)
-        if len(files) == 2:
-            (name_a, a), (name_b, b) = sorted(files.items(), reverse=True)
-            diff = paired_encoders(a, b)
+        for name_a, name_b in combinations(sorted(files, reverse=True), 2):
+            diff = paired_encoders(files[name_a], files[name_b])
             lines += [
                 "",
                 f"Paired difference {name_a} − {name_b} (dense, exact): "
                 f"recall@10 {100 * diff['recall@10']['diff']:+.1f} pp"
-                f"{_ci([x for x in diff['recall@10']['ci']])}, "
+                f"{_ci(diff['recall@10']['ci'])}, "
                 f"MRR {diff['mrr']['diff']:+.3f} "
                 f"[{diff['mrr']['ci'][0]:+.3f}–{diff['mrr']['ci'][1]:+.3f}].",
             ]

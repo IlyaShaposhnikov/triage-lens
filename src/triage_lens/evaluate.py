@@ -272,7 +272,10 @@ def combined_predictions(
     return preds, scores
 
 
-def flag_report(records: Records, probs: np.ndarray, threshold: float | None) -> dict[str, Any]:
+def flag_report(
+    records: Records, probs: np.ndarray, threshold: float | None
+) -> tuple[dict[str, Any], list[str]]:
+    """Flagging metrics, and the combined (form + flag) predictions."""
     preds, scores = combined_predictions(records, probs, threshold)
     filed = [i for i, r in enumerate(records) if r["form"] in CLASSES]
     is_misfiled = np.array([records[i]["form"] != records[i]["label"] for i in filed])

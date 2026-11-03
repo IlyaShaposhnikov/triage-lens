@@ -1,7 +1,13 @@
+**[Russian Version / На русском](README.ru.md)**
+
 # TriageLens
 
-[![Open the demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://triage-lens.streamlit.app/)
-[![Dataset on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20dataset-triage--lens--demo-yellow)](https://huggingface.co/datasets/IlyaShaposhnikov/triage-lens-demo)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-%23FF4B4B.svg?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![CI](https://github.com/IlyaShaposhnikov/triage-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/IlyaShaposhnikov/triage-lens/actions)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit-FF4B4B?logo=streamlit)](https://triage-lens.streamlit.app/)
+[![Dataset](https://img.shields.io/badge/%F0%9F%A4%97_Dataset-triage--lens--demo-yellow)](https://huggingface.co/datasets/IlyaShaposhnikov/triage-lens-demo)
 
 Triage for GitHub issues: **what kind of issue is this, and has it been reported before?**
 Built and evaluated on live issues from two popular Python projects,
@@ -154,8 +160,8 @@ The full tables, including recall@1/5 and all intervals, are in
 A few problems found along the way, kept here because they changed the results:
 
 - **Silent data loss in REST pagination.** GitHub's REST API stops at 10,000 results. Using
-  `since` as a cursor to work around it silently skipped almost a quarter of pandas issues; a diagnostic
-  script found real issues missing from the download. The collector now uses GraphQL cursor
+  `since` as a cursor to work around it silently skipped almost a quarter of pandas issues;
+  a diagnostic script found real issues missing from the download. The collector now uses GraphQL cursor
   pagination, and the counts match GitHub search.
 - **Swapped fields** in GitHub's "marked as duplicate" event (see above).
 - **BART and `</s>`.** pandas issues contain HTML strikethrough `<s>…</s>`, which BART reads as
@@ -198,7 +204,9 @@ pip install -r requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
-Tests: `pytest` (no network or GPU needed).
+Tests: `pytest`, 130+ tests, none of which need the network or a GPU: the GitHub API, the
+embedding models, Chroma and the Hugging Face Hub are replaced by fakes. CI runs the linter
+and the tests on Python 3.11 and 3.12.
 
 ## Limitations
 
@@ -210,7 +218,13 @@ Tests: `pytest` (no network or GPU needed).
   "miss" may be a correct but unlinked match.
 - The demo index is a snapshot from 29 October 2026.
 
-## License
+## Author
 
-[MIT](LICENSE). Issue texts belong to their authors; the published dataset only contains short
-snippets for search.
+Ilya Shaposhnikov | [E-mail](mailto:ilia.a.shaposhnikov@gmail.com) | [LinkedIn](https://linkedin.com/in/iliashaposhnikov)
+
+Code under the [MIT license](LICENSE). Data: public issues of
+[astral-sh/uv](https://github.com/astral-sh/uv) and [pandas-dev/pandas](https://github.com/pandas-dev/pandas)
+through the [GitHub API](https://docs.github.com/en/graphql). Issue texts belong to their
+authors; the published dataset contains only short snippets for search.
+
+**[Russian Version / На русском](README.ru.md)**
