@@ -48,7 +48,7 @@ plus earlier issues that may describe the same problem.
 | Evaluation | `evaluate.py` | Shared metrics with bootstrap intervals, plus the "form + flag" view |
 | Classifiers | `baselines.py`, `embeddings.py`, `transformer.py` | Majority and trust-the-form baselines, TF-IDF, sentence embeddings, fine-tuned DistilBERT and zero-shot BART (on a Kaggle GPU) |
 | Search | `search.py` | BM25, exact dense search, a Chroma vector database and hybrid fusion |
-| Demo | `demo_data.py`, `app_core.py`, `app/` | Publishes the index to Hugging Face and serves it in Streamlit |
+| Demo | `demo_data.py`, `refresh.py`, `app_core.py`, `app/` | Publishes the index to Hugging Face, keeps it up to date and serves it in Streamlit |
 | Report | `report.py` | Builds the result tables below from `results/` |
 
 ## Data
@@ -177,8 +177,8 @@ A few problems found along the way, kept here because they changed the results:
 
 Python 3.11+. Data and caches go to `data/` (not tracked).
 
-`requirements.lock` pins the exact versions behind the published results, for Python 3.12+
-(all extras except the Kaggle GPU step, which used Kaggle's own torch 2.11 and transformers 5.16):
+`requirements.lock` pins the exact versions behind the published results (all extras except
+the Kaggle GPU step, which used Kaggle's own torch 2.11 and transformers 5.16):
 
 ```bash
 pip install -r requirements.lock && pip install -e . --no-deps
@@ -213,7 +213,22 @@ pip install -r requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
-Tests: `pytest`, 130+ tests, none of which need the network or a GPU: the GitHub API, the
+The published index is kept up to date by a weekly workflow
+([`refresh.yml`](.github/workflows/refresh.yml)). It downloads the dataset from Hugging Face,
+fetches issues created or changed since the last run, re-encodes only those whose text changed,
+checks that the result loads and answers a query, and publishes it. The app picks it up within
+six hours. The classifier is not retrained: its evaluation belongs to the fixed time split.
+The same step by hand (a dry run without `--push`):
+
+```bash
+python -m triage_lens.refresh --repo-id USER/triage-lens-demo [--push]
+```
+
+The workflow needs an `HF_TOKEN` repository secret with write access to the dataset. GitHub
+disables scheduled workflows after 60 days without commits; it can be re-enabled in the
+Actions tab or run by hand there.
+
+Tests: `pytest`, 140+ tests, none of which need the network or a GPU: the GitHub API, the
 embedding models, Chroma and the Hugging Face Hub are replaced by fakes. CI runs the linter
 and the tests on Python 3.11 and 3.12.
 
@@ -225,7 +240,8 @@ and the tests on Python 3.11 and 3.12.
   questions are rare in the test period (73 issues), so per-class numbers there are noisy.
 - Duplicate ground truth covers only duplicates that maintainers noticed and linked; a
   "miss" may be a correct but unlinked match.
-- The demo index is a snapshot from 29 October 2026.
+- The demo index is refreshed weekly, but the classifier was trained on issues up to
+  October 2026 and is not retrained, so its accuracy on new issues may slowly drift.
 
 ## Author
 

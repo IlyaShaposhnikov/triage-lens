@@ -118,6 +118,7 @@ def test_refresh_updates_files_and_manifest(tmp_path):
     assert info["newest_issue"] == "2025-01-10T00:00:00Z"
     assert info["updated_through"] == "2025-01-20T00:00:00Z"
     assert info["refreshed_at"] == manifest["refreshed_at"] == "2025-02-01T00:00:00Z"
+    assert "| 4 | 2025-01-10 |" in (root / "README.md").read_text()  # dataset card
 
     assets = DemoAssets(root)
     issues = assets.repos[REPO].issues

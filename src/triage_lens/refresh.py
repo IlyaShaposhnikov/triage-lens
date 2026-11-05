@@ -40,7 +40,7 @@ import requests
 from triage_lens.app_core import DemoAssets
 from triage_lens.collect import PAGE_SIZE, make_session, post_graphql, to_record
 from triage_lens.dataset import cleaned
-from triage_lens.demo_data import issue_row
+from triage_lens.demo_data import issue_row, write_card
 from triage_lens.embeddings import Encoder, load_sentence_transformer
 
 OVERLAP = timedelta(days=1)
@@ -204,6 +204,7 @@ def refresh(
     }
     manifest["refreshed_at"] = iso(now)
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    write_card(root, manifest)  # its table shows issue counts and the newest issue
     validate(root, encode)
     return summary
 

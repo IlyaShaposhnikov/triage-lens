@@ -1,0 +1,33 @@
+name: Refresh demo index
+
+on:
+  schedule:
+    - cron: "23 4 * * 1"  # Mondays, 04:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-demo
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      # The app's dependencies: CPU torch, sentence-transformers, huggingface_hub and the
+      # scikit-learn version the published classifier was pickled with.
+      - run: pip install -r requirements.txt
+      - run: python -m triage_lens.refresh --repo-id IlyaShaposhnikov/triage-lens-demo --push
+        env:
+          # The workflow's own token is enough to read public issues.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
