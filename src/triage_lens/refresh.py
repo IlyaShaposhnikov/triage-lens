@@ -216,7 +216,14 @@ def download(repo_id: str, target: Path) -> Path:
     source = Path(snapshot_download(repo_id=repo_id, repo_type="dataset"))
     if target.exists():
         shutil.rmtree(target)
-    shutil.copytree(source, target, ignore=shutil.ignore_patterns(".cache", ".gitattributes"))
+    # copyfile, not the default copy2: files in the Hugging Face cache can be
+    # read-only (on Linux runners they are), and copy2 would carry that over.
+    shutil.copytree(
+        source,
+        target,
+        ignore=shutil.ignore_patterns(".cache", ".gitattributes"),
+        copy_function=shutil.copyfile,
+    )
     return target
 
 

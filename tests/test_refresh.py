@@ -149,6 +149,9 @@ def test_refresh_fails_on_missing_repository(tmp_path):
 
 def test_main_dry_run_does_not_push(tmp_path, monkeypatch):
     published = make_assets(tmp_path / "hub")
+    for path in published.rglob("*"):
+        if path.is_file():
+            path.chmod(0o444)  # the Hugging Face cache on Linux runners is read-only
     uploads = []
     hub = types.SimpleNamespace(
         snapshot_download=lambda repo_id, repo_type: str(published),
@@ -161,6 +164,7 @@ def test_main_dry_run_does_not_push(tmp_path, monkeypatch):
 
     r.main(["--repo-id", "me/demo", "--dir", str(work)], encoder_factory=lambda m, b: fake_encode)
     assert uploads == [] and (work / "manifest.json").exists()
+    assert all(p.stat().st_mode & 0o200 for p in work.rglob("*") if p.is_file())
     assert "refreshed_at" not in json.loads((published / "manifest.json").read_text())
 
     r.main(
