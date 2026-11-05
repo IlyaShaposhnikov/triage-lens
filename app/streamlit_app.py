@@ -36,7 +36,13 @@ EXAMPLES = {
 st.set_page_config(page_title="TriageLens", page_icon="🔎", layout="wide")
 
 
-@st.cache_resource(show_spinner="Downloading the index from Hugging Face…")
+# The index is refreshed on a schedule (triage_lens.refresh); after the TTL the
+# next visitor triggers a check. An unchanged dataset costs one metadata request,
+# since huggingface_hub keeps the files in its local cache.
+INDEX_TTL_S = 6 * 3600
+
+
+@st.cache_resource(ttl=INDEX_TTL_S, show_spinner="Downloading the index from Hugging Face…")
 def get_assets() -> DemoAssets:
     return DemoAssets.from_hub(HF_DATASET)
 
@@ -61,9 +67,11 @@ with st.sidebar:
     repo = st.selectbox("Repository", list(assets.repos))
     k = st.slider("Similar issues to show", 3, 15, 5)
     info = assets.repos[repo].info
+    refreshed = info.get("refreshed_at")
     st.caption(
-        f"{info['issues']:,} issues indexed, newest from {info['newest_issue'][:10]}. "
-        f"Encoder: `{assets.encoder_name}`."
+        f"{info['issues']:,} issues indexed, newest from {info['newest_issue'][:10]}"
+        + (f", refreshed {refreshed[:10]}" if refreshed else "")
+        + f". Encoder: `{assets.encoder_name}`."
     )
     metrics = info.get("metrics", {})
     if "search" in metrics:
