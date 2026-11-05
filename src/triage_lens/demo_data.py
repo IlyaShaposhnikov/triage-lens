@@ -57,25 +57,32 @@ class MissingVectors(RuntimeError):
     pass
 
 
+def issue_row(issue: dict[str, Any], text: str) -> dict[str, Any]:
+    """Display data for one issue; ``text`` is its cleaned text (title + body).
+
+    ``text_sha1`` lets a later refresh tell whether the text changed, so only
+    edited issues are encoded again.
+    """
+    body = text.split("\n\n", 1)[1] if "\n\n" in text else ""
+    return {
+        "number": int(issue["number"]),
+        "title": issue["title"],
+        "state": issue["state"],
+        "state_reason": issue.get("state_reason"),
+        "labels": issue["labels"][:MAX_LABELS],
+        "created_at": issue["created_at"],
+        "url": issue["url"],
+        "snippet": " ".join(body.split())[:SNIPPET_CHARS],
+        "text_sha1": text_hash(text),
+    }
+
+
 def issue_rows(corpus: Corpus, issues: dict[int, dict[str, Any]]) -> list[dict[str, Any]]:
     """Display data for every issue, in corpus (creation time) order."""
-    rows = []
-    for number, text in zip(corpus.numbers, corpus.texts, strict=True):
-        issue = issues[int(number)]
-        body = text.split("\n\n", 1)[1] if "\n\n" in text else ""
-        rows.append(
-            {
-                "number": int(number),
-                "title": issue["title"],
-                "state": issue["state"],
-                "state_reason": issue.get("state_reason"),
-                "labels": issue["labels"][:MAX_LABELS],
-                "created_at": issue["created_at"],
-                "url": issue["url"],
-                "snippet": " ".join(body.split())[:SNIPPET_CHARS],
-            }
-        )
-    return rows
+    return [
+        issue_row(issues[int(number)], text)
+        for number, text in zip(corpus.numbers, corpus.texts, strict=True)
+    ]
 
 
 def corpus_vectors(corpus: Corpus, cache_path: Path) -> np.ndarray:
@@ -148,6 +155,7 @@ def build_repo(
         "classifier": {"model": "tfidf_logreg", "C": c, "trained_on": "train+validation"},
         "dataset_sha1": file_hash(dataset_path),
         "newest_issue": max(i["created_at"] for i in issues.values()),
+        "updated_through": max(i["updated_at"] for i in issues.values()),
         "metrics": headline_metrics(results_dir, stem, slug),
     }
 
